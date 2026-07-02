@@ -1,0 +1,20 @@
+{
+    "type": "em",
+    "group": "Basic tools",
+    "name": "infinitehq.testcpp",
+    "proper_name": "TestCPP",
+    "auto_exec": true,
+    "version": "1.0.0",
+    "author": "Infinite",
+    "contributors": [
+        "Diego E. Moreno <d@infinite.si>"
+    ],
+    "deps": [
+    ],
+    "compatibility": [
+        "1.0"
+    ],
+    "path": "./libmodule.so",
+    "picture": "./resources/logo.png",
+    "description": "Advanced and powerfull node editor with extensive and unlimited possibilities"
+}
