@@ -10,11 +10,11 @@
 namespace ModuleUI {
   class TestCppWrapperAppWindow : public std::enable_shared_from_this<TestCppWrapperAppWindow> {
    public:
-    TestCppWrapperAppWindow();
+    TestCppWrapperAppWindow(const std::string& name);
 
     void menubar();
     std::shared_ptr<Cherry::AppWindow>& get_app_window();
-    static std::shared_ptr<TestCppWrapperAppWindow> create();
+    static std::shared_ptr<TestCppWrapperAppWindow> create(const std::string& name);
 
     void set_instance_id(const std::string& gsid) {
       graph_session_id_ = gsid;
@@ -25,15 +25,16 @@ namespace ModuleUI {
     std::shared_ptr<Cherry::AppWindow> app_window_;
     bool opened;
     std::string graph_session_id_ = "undefined";
+    std::string name_;
   };
 
-  class TestCppOtherRandomWindow : public std::enable_shared_from_this<TestCppOtherRandomWindow> {
+  class DetailsWindow : public std::enable_shared_from_this<DetailsWindow> {
    public:
-    TestCppOtherRandomWindow();
+    DetailsWindow();
 
     void menubar();
     std::shared_ptr<Cherry::AppWindow>& get_app_window();
-    static std::shared_ptr<TestCppOtherRandomWindow> create();
+    static std::shared_ptr<DetailsWindow> create();
     void render();
 
     void setup_render_callback();
@@ -42,6 +43,25 @@ namespace ModuleUI {
    private:
     std::shared_ptr<VxContext> ctx;
     std::shared_ptr<Cherry::AppWindow> app_window_;
+    bool opened;
+  };
+
+  class DrawerWindow : public std::enable_shared_from_this<DrawerWindow> {
+   public:
+    DrawerWindow();
+
+    void menubar();
+    std::shared_ptr<Cherry::AppWindow>& get_app_window();
+    static std::shared_ptr<DrawerWindow> create();
+    void render();
+    bool i = false;
+
+    void setup_render_callback();
+
+   private:
+    std::shared_ptr<VxContext> ctx;
+    std::shared_ptr<Cherry::AppWindow> app_window_;
+    std::string gs_id_;
     bool opened;
   };
 };  // namespace ModuleUI

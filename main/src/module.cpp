@@ -40,13 +40,18 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
   std::string id;
   fs::path full_path(path);
   std::string graph_path = path + "/cpp_sketch.ng";
-  auto inst = ModuleUI::TestCppWrapperAppWindow::create();
+  auto inst = ModuleUI::TestCppWrapperAppWindow::create(full_path.filename());
   Cherry::AddAppWindow(inst->get_app_window());
   s_instances.push_back(inst);
 
   {
-    // auto i = ModuleUI::TestCppOtherRandomWindow::create();
-    // Cherry::AddAppWindow(i->get_app_window());
+    auto i = ModuleUI::DetailsWindow::create();
+    Cherry::AddAppWindow(i->get_app_window());
+  }
+
+  {
+    auto i = ModuleUI::DrawerWindow::create();
+    Cherry::AddAppWindow(i->get_app_window());
   }
 
   {
@@ -54,7 +59,7 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
     j["path"] = graph_path;
     j["disable_native_saving_system"] = true;
     j["graph_title"] = "C++ Simple Program";
-    j["parent_appwindow"] = "TEST";
+    j["parent_appwindow"] = full_path.filename();
     j["logo_path"] = TestCPP::get_path("resources/icons/icon_magnifying_glass.png");
 
     auto ret = ReturnValues();

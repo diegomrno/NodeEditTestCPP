@@ -7,9 +7,10 @@
 #include "../../../src/module.hpp"
 
 namespace ModuleUI {
-  TestCppWrapperAppWindow::TestCppWrapperAppWindow() {
-    app_window_ = std::make_shared<Cherry::AppWindow>("TEST", "TEST");
+  TestCppWrapperAppWindow::TestCppWrapperAppWindow(const std::string& name) {
+    app_window_ = std::make_shared<Cherry::AppWindow>(name, name);
     app_window_->SetDockingMode(true);
+    name_ = name;
 
     app_window_->SetClosable(true);
 
@@ -25,7 +26,7 @@ namespace ModuleUI {
         j["session_id"] = graph_session_id_;
         auto args = ArgumentValues(j.dump());
         auto ret = ReturnValues();
-        vxe::call_input_event("infinitehq.TestCpp", "save_nodegraph", args, ret);
+        vxe::call_input_event("infinitehq.nodeedit", "save_nodegraph", args, ret);
       }
 
       CherryNextComponent.SetProperty("padding_y", "6.0f");
@@ -36,7 +37,7 @@ namespace ModuleUI {
         j["session_id"] = graph_session_id_;
         auto args = ArgumentValues(j.dump());
         auto ret = ReturnValues();
-        vxe::call_input_event("infinitehq.TestCpp", "refresh_nodegraph", args, ret);
+        vxe::call_input_event("infinitehq.nodeedit", "refresh_nodegraph", args, ret);
       }
 
       CherryNextComponent.SetProperty("padding_y", "6.0f");
@@ -73,8 +74,8 @@ namespace ModuleUI {
     return app_window_;
   }
 
-  std::shared_ptr<TestCppWrapperAppWindow> TestCppWrapperAppWindow::create() {
-    auto instance = std::shared_ptr<TestCppWrapperAppWindow>(new TestCppWrapperAppWindow());
+  std::shared_ptr<TestCppWrapperAppWindow> TestCppWrapperAppWindow::create(const std::string& name) {
+    auto instance = std::shared_ptr<TestCppWrapperAppWindow>(new TestCppWrapperAppWindow(name));
     return instance;
   }
 
