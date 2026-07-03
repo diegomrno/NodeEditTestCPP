@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <format>
+#include <unordered_map>
 #include <vxgui/editor/main/editor.hpp>
 
 #include "../ui/instances/node_editor_wrapper/node_editor_wrapper.hpp"
@@ -19,9 +20,12 @@
 // Graph context extensions
 // Vortex Events APi
 
+static int i_session = 0;
+
 namespace TestCPP {
   struct Context {
     std::shared_ptr<ModuleInterface> interface;
+    std::unordered_map<std::string, std::string> session_links;  // second = graph id
   };
 }  // namespace TestCPP
 // context pointer
@@ -43,6 +47,8 @@ namespace TestCPP {
 
   TESTCPP_API void setup_graph_ctx();
 
+  TESTCPP_API void set_session_link(const std::string &id, const std::string &graph_id);
+  TESTCPP_API std::string get_session_link(const std::string &id);
 }  // namespace TestCPP
 
 #endif  // SAMPLE_MODULE_HPP

@@ -8,9 +8,11 @@
 namespace ModuleUI {
 
   static int it = 1;
-  DrawerWindow::DrawerWindow() {
+  DrawerWindow::DrawerWindow(const std::string &parent_name, const std::string &id) {
     it++;
 
+    parent_name_ = parent_name;
+    id_ = id;
     app_window_ = std::make_shared<Cherry::AppWindow>("Drawe", "Drawer");
 
     app_window_->SetDefaultBehavior(DefaultAppWindowBehaviors::DefaultDocking, "left");
@@ -26,8 +28,8 @@ namespace ModuleUI {
     return app_window_;
   }
 
-  std::shared_ptr<DrawerWindow> DrawerWindow::create() {
-    auto instance = std::shared_ptr<DrawerWindow>(new DrawerWindow());
+  std::shared_ptr<DrawerWindow> DrawerWindow::create(const std::string &parent_name, const std::string &id) {
+    auto instance = std::shared_ptr<DrawerWindow>(new DrawerWindow(parent_name, id));
     instance->setup_render_callback();
     return instance;
   }
@@ -43,7 +45,7 @@ namespace ModuleUI {
 
   void DrawerWindow::render() {
     if (!i) {
-      auto parent = Cherry::GetAppWindowByName("TEST");
+      auto parent = Cherry::GetAppWindowByName(parent_name_);
       if (parent) {
         app_window_->SetParent(parent);
         app_window_->m_WindowRebuilded = false;
@@ -51,6 +53,15 @@ namespace ModuleUI {
       i = true;
     }
 
+    if (!gs_id_loaded) {
+      auto gs_id = TestCPP::get_session_link(id_);
+      if (gs_id != "none") {
+        gs_id_ = gs_id;
+        gs_id_loaded = true;
+      }
+    }
+
+    CherryKit::TitleOne(gs_id_);
     if (CherryKit::ButtonText("Add sample var").GetDataAs<bool>("isClicked")) {
       auto call = [](const char *action, const std::string &json) {
         auto args = ArgumentValues(json);
@@ -84,12 +95,12 @@ namespace ModuleUI {
     "label": "My new int",
     "label_color": "#FFFFFF",
     "status": "active",
-    "border_color":        "#ebd934",
-    "background_color":        "#ebd93433",
+    "border_color":        "#eb3461",
+    "background_color":        "#eb346133",
     "input_pins": [
     ],
     "output_pins": [
-      { "id": "value", "name": "", "type": "int" }
+      { "id": "value", "name": "", "type": "bool" }
     ],
     "spawnable": true,
     "spawn_possibility": {

@@ -30,11 +30,11 @@ namespace ModuleUI {
 
   class DetailsWindow : public std::enable_shared_from_this<DetailsWindow> {
    public:
-    DetailsWindow();
+    DetailsWindow(const std::string& parent_name, const std::string& id);
 
     void menubar();
     std::shared_ptr<Cherry::AppWindow>& get_app_window();
-    static std::shared_ptr<DetailsWindow> create();
+    static std::shared_ptr<DetailsWindow> create(const std::string& parent_name, const std::string& id);
     void render();
 
     void setup_render_callback();
@@ -43,16 +43,19 @@ namespace ModuleUI {
    private:
     std::shared_ptr<VxContext> ctx;
     std::shared_ptr<Cherry::AppWindow> app_window_;
+    std::string parent_name_;
+    std::string id_;
+    std::string gs_id_;
     bool opened;
   };
 
   class DrawerWindow : public std::enable_shared_from_this<DrawerWindow> {
    public:
-    DrawerWindow();
+    DrawerWindow(const std::string& parent_name, const std::string& id);
 
     void menubar();
     std::shared_ptr<Cherry::AppWindow>& get_app_window();
-    static std::shared_ptr<DrawerWindow> create();
+    static std::shared_ptr<DrawerWindow> create(const std::string& parent_name, const std::string& id);
     void render();
     bool i = false;
 
@@ -61,7 +64,10 @@ namespace ModuleUI {
    private:
     std::shared_ptr<VxContext> ctx;
     std::shared_ptr<Cherry::AppWindow> app_window_;
-    std::string gs_id_;
+    std::string parent_name_;
+    std::string id_;
+    std::string gs_id_ = "none";
+    bool gs_id_loaded = false;
     bool opened;
   };
 };  // namespace ModuleUI

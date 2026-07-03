@@ -44,13 +44,15 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
   Cherry::AddAppWindow(inst->get_app_window());
   s_instances.push_back(inst);
 
+  TestCPP::set_session_link(std::to_string(++i_session), "none");
+
   {
-    auto i = ModuleUI::DetailsWindow::create();
+    auto i = ModuleUI::DetailsWindow::create(full_path.filename(), std::to_string(i_session));
     Cherry::AddAppWindow(i->get_app_window());
   }
 
   {
-    auto i = ModuleUI::DrawerWindow::create();
+    auto i = ModuleUI::DrawerWindow::create(full_path.filename(), std::to_string(i_session));
     Cherry::AddAppWindow(i->get_app_window());
   }
 
@@ -67,6 +69,9 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
     vxe::call_input_event("infinitehq.nodeedit", "open_graph", args, ret);
 
     id = ret.get_json()["session_id"];
+    std::cout << id << std::endl;
+    TestCPP::set_session_link(std::to_string(i_session), id);
+
     inst->set_instance_id(id);
   }
 
@@ -77,6 +82,23 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
     auto ret = ReturnValues();
     vxe::call_input_event("infinitehq.nodeedit", "refresh_nodegraph", args, ret);
   }
+}
+
+void TestCPP::set_session_link(const std::string &session_id, const std::string &graph_id) {
+  auto ctx = get_current_context();
+  if (!ctx)
+    return;
+  ctx->session_links[session_id] = graph_id;
+}
+
+std::string TestCPP::get_session_link(const std::string &session_id) {
+  auto ctx = get_current_context();
+  if (!ctx)
+    return "";
+  auto it = ctx->session_links.find(session_id);
+  if (it == ctx->session_links.end())
+    return "";
+  return it->second;
 }
 
 void TestCPP::setup_graph_ctx() {
