@@ -43,6 +43,7 @@ namespace ModuleUI {
    private:
     std::shared_ptr<VxContext> ctx;
     std::shared_ptr<Cherry::AppWindow> app_window_;
+    std::shared_ptr<TestCPP::DrawerSession> drawer_session_ = nullptr;
     std::string parent_name_;
     std::string id_;
     std::string gs_id_;
@@ -63,6 +64,7 @@ namespace ModuleUI {
 
    private:
     std::shared_ptr<VxContext> ctx;
+    std::shared_ptr<TestCPP::DrawerSession> drawer_session_ = nullptr;
     std::shared_ptr<Cherry::AppWindow> app_window_;
     std::string parent_name_;
     std::string id_;

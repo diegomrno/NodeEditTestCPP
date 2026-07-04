@@ -44,7 +44,9 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
   Cherry::AddAppWindow(inst->get_app_window());
   s_instances.push_back(inst);
 
-  TestCPP::set_session_link(std::to_string(++i_session), "none");
+  int session_id = ++i_session;
+  TestCPP::set_session_link(std::to_string(session_id), "none");
+  TestCPP::set_session_variables(std::to_string(session_id), std::make_shared<DrawerSession>());
 
   {
     auto i = ModuleUI::DetailsWindow::create(full_path.filename(), std::to_string(i_session));
@@ -98,6 +100,25 @@ std::string TestCPP::get_session_link(const std::string &session_id) {
   auto it = ctx->session_links.find(session_id);
   if (it == ctx->session_links.end())
     return "";
+  return it->second;
+}
+
+void TestCPP::set_session_variables(
+    const std::string &session_id,
+    const std::shared_ptr<TestCPP::DrawerSession> &variables) {
+  auto ctx = get_current_context();
+  if (!ctx)
+    return;
+  ctx->session_variables[session_id] = variables;
+}
+
+std::shared_ptr<TestCPP::DrawerSession> TestCPP::get_session_variables(const std::string &session_id) {
+  auto ctx = get_current_context();
+  if (!ctx)
+    return nullptr;
+  auto it = ctx->session_variables.find(session_id);
+  if (it == ctx->session_variables.end())
+    return nullptr;
   return it->second;
 }
 

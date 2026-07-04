@@ -27,6 +27,8 @@ namespace ModuleUI {
         auto args = ArgumentValues(j.dump());
         auto ret = ReturnValues();
         vxe::call_input_event("infinitehq.nodeedit", "save_nodegraph", args, ret);
+
+        // save drawer session
       }
 
       CherryNextComponent.SetProperty("padding_y", "6.0f");
@@ -38,6 +40,8 @@ namespace ModuleUI {
         auto args = ArgumentValues(j.dump());
         auto ret = ReturnValues();
         vxe::call_input_event("infinitehq.nodeedit", "refresh_nodegraph", args, ret);
+
+        // refresh drawer session
       }
 
       CherryNextComponent.SetProperty("padding_y", "6.0f");
