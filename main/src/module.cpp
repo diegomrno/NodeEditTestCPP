@@ -270,6 +270,37 @@ void TestCPP::setup_graph_ctx() {
       "setup_schema",
       R"({
     "context_name": "testcpp",
+    "id": "sleep",
+    "type": "blueprint",
+    "status": "active",
+    "second_label": "Sleep for a while",
+    "second_label_color": "#8a88f2",
+    "label": "Sleep",
+    "label_color": "#ABABAB",
+    "header_color": "#3a4bab",
+    "header_logo_path": ")" +
+          foo_logo_path_escaped + R"(",
+    "input_pins": [
+      { "id": "input_flow", "name": "", "type": "flow" },
+      { "id": "int", "name": "Seconds", "type": "int" }
+    ],
+    "output_pins": [
+      { "id": "output_flow", "name": "", "type": "flow" }
+    ],
+    "spawnable": true,
+    "spawn_possibility": {
+      "category": "Functions",
+      "proper_description": "Sleep for a while",
+      "proper_logo": "resources/icons/edit.png",
+      "proper_name": "Sleep",
+      "schema_id": "sleep"
+    }
+  })");
+
+  call(
+      "setup_schema",
+      R"({
+    "context_name": "testcpp",
     "id": "on_setup",
     "type": "blueprint",
     "status": "active",
@@ -292,6 +323,35 @@ void TestCPP::setup_graph_ctx() {
       "proper_logo": "resources/icons/edit.png",
       "proper_name": "On begin",
       "schema_id": "on_setup"
+    }
+  })");
+
+  call(
+      "setup_schema",
+      R"({
+    "context_name": "testcpp",
+    "id": "on_loop",
+    "type": "blueprint",
+    "status": "active",
+    "second_label": "Triggered every ticks",
+    "second_label_color": "#cf8a8a",
+    "label": "OnLoop",
+    "label_color": "#ABABAB",
+    "header_color": "#ab3a45",
+    "header_logo_path": ")" +
+          event_logo_path_escaped + R"(",
+    "input_pins": [
+    ],
+    "output_pins": [
+      { "id": "output_flow", "name": "", "type": "flow" }
+    ],
+    "spawnable": true,
+    "spawn_possibility": {
+      "category": "Events",
+      "proper_description": "Triggered every ticks",
+      "proper_logo": "resources/icons/edit.png",
+      "proper_name": "On Loop",
+      "schema_id": "on_loop"
     }
   })");
 
@@ -349,56 +409,43 @@ void TestCPP::setup_graph_ctx() {
       "schema_id": "is_int_higher_than_int"
     }
   })");
+}
 
-  call(
-      "setup_schema",
-      R"({
-    "context_name": "testcpp",
-    "id": "varget",
-    "type": "simple",
-    "label": "Variable name",
-    "border_color":"#eb3461",
-    "background_color":"#eb346133",
-    "status": "active",
-    "input_pins": [
-    ],
-    "output_pins": [
-      { "id": "bool", "name": "", "type": "bool" }
-    ],
-    "spawnable": true,
-    "spawn_possibility": {
-      "category": "Utils",
-      "proper_description": "",
-      "proper_logo": "resources/icons/edit.png",
-      "proper_name": "get example",
-      "schema_id": "varget"
-    }
-  })");
+std::vector<TestCPP::Variable> TestCPP::load_variables_from_file(const std::string &storage_path) {
+  std::vector<TestCPP::Variable> result;
+  if (storage_path.empty())
+    return result;
 
-  call(
-      "setup_schema",
-      R"({
-    "context_name": "testcpp",
-    "id": "varset",
-    "type": "blueprint",
-    "label": "Set",
-    "header_color":"#eb3461",
-    "label_color":"#DEDEDE",
-    "status": "active",
-    "input_pins": [
-      { "id": "flow", "name": "", "type": "flow" },
-      { "id": "bool", "name": "Variable name", "type": "bool" }
-    ],
-    "output_pins": [
-      { "id": "flow", "name": "", "type": "flow" }
-    ],
-    "spawnable": true,
-    "spawn_possibility": {
-      "category": "Utils",
-      "proper_description": "",
-      "proper_logo": "resources/icons/edit.png",
-      "proper_name": "set example",
-      "schema_id": "varset"
+  std::filesystem::path p(storage_path);
+
+  try {
+    if (!std::filesystem::exists(p)) {
+      if (p.has_parent_path())
+        std::filesystem::create_directories(p.parent_path());
+
+      nlohmann::json seed;
+      seed["vars"] = nlohmann::json::array();
+
+      std::ofstream out(p);
+      if (out.is_open())
+        out << seed.dump(2);
+
+      return result;
     }
-  })");
+
+    std::ifstream in(p);
+    if (!in.is_open())
+      return result;
+
+    nlohmann::json j;
+    in >> j;
+
+    if (j.contains("vars") && j["vars"].is_array())
+      for (const auto &vj : j["vars"])
+        result.push_back(vj.get<TestCPP::Variable>());
+  } catch (const std::exception &) {
+    result.clear();
+  }
+
+  return result;
 }

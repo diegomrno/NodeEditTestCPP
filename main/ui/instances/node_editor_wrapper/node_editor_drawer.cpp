@@ -249,6 +249,7 @@ namespace ModuleUI {
     sj["type"] = "simple";
     sj["label"] = var.name;
     sj["border_color"] = pf.color;
+    sj["label_color"] = "#DEDEDE";
     sj["background_color"] = pf.color + "33";  // 33 is for opacity
     sj["status"] = "active";
     sj["input_pins"] = nlohmann::json::array();

@@ -11,8 +11,6 @@
 #define TESTCPP_HELPERS
 namespace TestCPP {
 
-  // Only name / type / default_value are ever persisted to disk. `id` is kept
-  // so the corresponding varget_/varset_ schema ids stay stable across saves.
   struct Variable {
     std::string id;
     std::string name;
@@ -47,5 +45,6 @@ namespace TestCPP {
     v.default_value = j.value("default_value", std::string());
   }
 
+  std::vector<Variable> load_variables_from_file(const std::string &storage_path);
 }  // namespace TestCPP
 #endif  // TESTCPP_HELPERS
