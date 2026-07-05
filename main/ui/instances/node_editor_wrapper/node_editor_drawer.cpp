@@ -240,14 +240,16 @@ namespace ModuleUI {
       std::unordered_map<std::string, TestCPP::PinFormatInfo> &pin_format_cache) {
     const std::string getter_id = std::string(kVarGetPrefix) + var.id;
 
+    const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(pin_format_cache, kContextId, var.type);
+
     nlohmann::json sj;
     sj["session_id"] = session_id;
     sj["context_name"] = kContextId;
     sj["id"] = getter_id;
     sj["type"] = "simple";
     sj["label"] = var.name;
-    sj["border_color"] = pin_format_cache[var.id].color;
-    sj["background_color"] = pin_format_cache[var.id].color + "33";  // 33 is for opacity
+    sj["border_color"] = pf.color;
+    sj["background_color"] = pf.color + "33";  // 33 is for opacity
     sj["status"] = "active";
     sj["input_pins"] = nlohmann::json::array();
     sj["output_pins"] = nlohmann::json::array(
@@ -267,13 +269,15 @@ namespace ModuleUI {
       std::unordered_map<std::string, TestCPP::PinFormatInfo> &pin_format_cache) {
     const std::string setter_id = std::string(kVarSetPrefix) + var.id;
 
+    const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(pin_format_cache, kContextId, var.type);
+
     nlohmann::json sj;
     sj["session_id"] = session_id;
     sj["context_name"] = kContextId;
     sj["id"] = setter_id;
     sj["type"] = "blueprint";
     sj["label"] = "Set " + var.name;
-    sj["header_color"] = pin_format_cache[var.id].color;
+    sj["header_color"] = pf.color;
     sj["label_color"] = "#DEDEDE";
     sj["status"] = "active";
     sj["input_pins"] = nlohmann::json::array(
