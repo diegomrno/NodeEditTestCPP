@@ -2,6 +2,7 @@
 #include <atomic>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -12,10 +13,12 @@
 namespace ModuleUI {
 
   static constexpr const char *kContextId = "testcpp";
-  static constexpr const char *kVarPrefix = "var_";
+  static constexpr const char *kVarIdPrefix = "v_";
+  static constexpr const char *kVarGetPrefix = "varget_";
+  static constexpr const char *kVarSetPrefix = "varset_";
 
-  static bool StartsWithVarPrefix(const std::string &id) {
-    return id.rfind(kVarPrefix, 0) == 0;
+  static bool StartsWith(const std::string &s, const std::string &prefix) {
+    return s.rfind(prefix, 0) == 0;
   }
 
   static std::string GenerateUniqueVariableId() {
@@ -25,8 +28,18 @@ namespace ModuleUI {
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 
     std::ostringstream oss;
-    oss << kVarPrefix << ns << "_" << counter;
+    oss << kVarIdPrefix << ns << "_" << counter;
     return oss.str();
+  }
+
+  static std::string DefaultValueForType(const std::string &type) {
+    if (type == "bool")
+      return "false";
+    if (type == "int")
+      return "0";
+    if (type == "float")
+      return "0.0";
+    return "";
   }
 
   static ReturnValues CallIe(const char *action, const std::string &json) {
@@ -81,109 +94,283 @@ namespace ModuleUI {
     return inserted_it->second;
   }
 
-  static std::vector<TestCPP::Variable> LoadVariablesFromGraph(const std::string &session_id) {
-    std::vector<TestCPP::Variable> result;
-    if (session_id.empty())
-      return result;
+  static std::vector<std::string> FetchAssignableTypes(const std::string &context_id) {
+    std::vector<std::string> types;
 
     nlohmann::json j;
-    j["session_id"] = session_id;
-    auto ret = CallIe("get_all_ext_schemas", j.dump());
+    j["context_id"] = context_id;
+    auto ret = CallIe("get_all_pin_formats", j.dump());
     const auto &rj = ret.get_json();
-    if (!rj.contains("schemas") || !rj["schemas"].is_array())
+    if (!rj.contains("pin_formats") || !rj["pin_formats"].is_array())
+      return types;
+
+    for (const auto &pf_json : rj["pin_formats"]) {
+      std::string type = pf_json.value("type", "");
+      if (type.empty() || type == "flow")
+        continue;
+      types.push_back(type);
+    }
+
+    return types;
+  }
+
+  static std::vector<TestCPP::Variable> LoadVariablesFromFile(const std::string &storage_path) {
+    std::vector<TestCPP::Variable> result;
+    if (storage_path.empty())
       return result;
 
-    for (const auto &schema_json : rj["schemas"]) {
-      std::string schema_id = schema_json.value("id", "");
-      if (!StartsWithVarPrefix(schema_id))
-        continue;
+    std::filesystem::path p(storage_path);
 
-      TestCPP::Variable var;
-      var.id = schema_id;
-      var.name = schema_json.value("label", schema_id);
+    try {
+      if (!std::filesystem::exists(p)) {
+        if (p.has_parent_path())
+          std::filesystem::create_directories(p.parent_path());
 
-      std::string var_type = "bool";
-      if (schema_json.contains("output_pins") && schema_json["output_pins"].is_array() &&
-          !schema_json["output_pins"].empty()) {
-        var_type = schema_json["output_pins"][0].value("type", "bool");
+        nlohmann::json seed;
+        seed["vars"] = nlohmann::json::array();
+
+        std::ofstream out(p);
+        if (out.is_open())
+          out << seed.dump(2);
+
+        return result;
       }
-      var.type = var_type;
-      var.value = "";
-      var.default_value = "";
 
-      result.push_back(std::move(var));
+      std::ifstream in(p);
+      if (!in.is_open()) {
+        std::cerr << "[TestCPP] Could not open '" << storage_path << "' for reading." << std::endl;
+        return result;
+      }
+
+      nlohmann::json j;
+      in >> j;
+
+      if (j.contains("vars") && j["vars"].is_array()) {
+        for (const auto &vj : j["vars"]) {
+          result.push_back(vj.get<TestCPP::Variable>());
+        }
+      }
+    } catch (const std::exception &e) {
+      std::cerr << "[TestCPP] Failed to load variables from '" << storage_path << "': " << e.what() << std::endl;
+      result.clear();
     }
 
     return result;
   }
 
-  static void RefreshVariablesFromGraph(
-      const std::string &session_id,
-      const std::shared_ptr<TestCPP::DrawerSession> &session) {
-    if (session_id.empty() || !session)
+  static void SaveVariablesToFile(const std::string &storage_path, const std::vector<TestCPP::Variable> &vars) {
+    if (storage_path.empty())
       return;
 
-    {
+    std::filesystem::path p(storage_path);
+
+    try {
+      if (p.has_parent_path())
+        std::filesystem::create_directories(p.parent_path());
+
       nlohmann::json j;
-      j["session_id"] = session_id;
-      CallIe("refresh_nodegraph", j.dump());
-    }
+      j["vars"] = nlohmann::json::array();
+      for (const auto &v : vars)
+        j["vars"].push_back(v);
 
-    session->vars = LoadVariablesFromGraph(session_id);
-
-    if (!session->selected_var.empty()) {
-      bool still_exists = std::any_of(session->vars.begin(), session->vars.end(), [&](const TestCPP::Variable &v) {
-        return v.id == session->selected_var;
-      });
-      if (!still_exists)
-        session->selected_var.clear();
+      std::ofstream out(p);
+      if (!out.is_open()) {
+        std::cerr << "[TestCPP] Could not open '" << storage_path << "' for writing." << std::endl;
+        return;
+      }
+      out << j.dump(2);
+    } catch (const std::exception &e) {
+      std::cerr << "[TestCPP] Failed to save variables to '" << storage_path << "': " << e.what() << std::endl;
     }
   }
 
-  static void SaveVariablesToGraph(const std::string &session_id, const std::shared_ptr<TestCPP::DrawerSession> &session) {
-    if (session_id.empty() || !session)
-      return;
+  namespace {
+    struct ExistingVarEntry {
+      std::string schema_id;
+      std::string var_id;
+      std::string label;
+      std::string type;
+      std::string default_value;
+    };
+  }  // namespace
 
-    {
-      nlohmann::json j;
-      j["session_id"] = session_id;
-      auto ret = CallIe("get_all_ext_schemas", j.dump());
-      const auto &rj = ret.get_json();
-      if (rj.contains("schemas") && rj["schemas"].is_array()) {
-        for (const auto &schema_json : rj["schemas"]) {
-          std::string schema_id = schema_json.value("id", "");
-          if (!StartsWithVarPrefix(schema_id))
-            continue;
+  static void CollectExistingVarSchemas(
+      const nlohmann::json &schemas_json,
+      std::unordered_map<std::string, ExistingVarEntry> &getters,
+      std::unordered_map<std::string, ExistingVarEntry> &setters) {
+    for (const auto &schema_json : schemas_json) {
+      std::string schema_id = schema_json.value("id", "");
 
-          nlohmann::json dj;
-          dj["session_id"] = session_id;
-          dj["schema_id"] = schema_id;
-          CallIe("delete_graph_ext_schema", dj.dump());
+      bool is_getter = StartsWith(schema_id, kVarGetPrefix);
+      bool is_setter = StartsWith(schema_id, kVarSetPrefix);
+      if (!is_getter && !is_setter)
+        continue;
+
+      ExistingVarEntry entry;
+      entry.schema_id = schema_id;
+      entry.var_id = is_getter ? schema_id.substr(std::string(kVarGetPrefix).size())
+                               : schema_id.substr(std::string(kVarSetPrefix).size());
+      entry.label = schema_json.value("label", "");
+
+      if (is_getter) {
+        if (schema_json.contains("output_pins") && schema_json["output_pins"].is_array() &&
+            !schema_json["output_pins"].empty()) {
+          entry.type = schema_json["output_pins"][0].value("type", "");
+          entry.default_value = schema_json["output_pins"][0].value("default_value", "");
         }
+        getters[entry.var_id] = std::move(entry);
+      } else {
+        if (schema_json.contains("input_pins") && schema_json["input_pins"].is_array()) {
+          for (const auto &pin : schema_json["input_pins"]) {
+            if (pin.value("id", "") == "value") {
+              entry.type = pin.value("type", "");
+              entry.default_value = pin.value("default_value", "");
+              break;
+            }
+          }
+        }
+        setters[entry.var_id] = std::move(entry);
+      }
+    }
+  }
+
+  static void CreateGetterSchema(
+      const std::string &session_id,
+      const TestCPP::Variable &var,
+      std::unordered_map<std::string, TestCPP::PinFormatInfo> &pin_format_cache) {
+    const std::string getter_id = std::string(kVarGetPrefix) + var.id;
+
+    nlohmann::json sj;
+    sj["session_id"] = session_id;
+    sj["context_name"] = kContextId;
+    sj["id"] = getter_id;
+    sj["type"] = "simple";
+    sj["label"] = var.name;
+    sj["border_color"] = pin_format_cache[var.id].color;
+    sj["background_color"] = pin_format_cache[var.id].color + "33";  // 33 is for opacity
+    sj["status"] = "active";
+    sj["input_pins"] = nlohmann::json::array();
+    sj["output_pins"] = nlohmann::json::array(
+        { { { "id", "value" }, { "name", "" }, { "type", var.type }, { "default_value", var.default_value } } });
+    sj["spawnable"] = true;
+    sj["spawn_possibility"] = {
+      { "category", "Variables" },          { "proper_description", "" }, { "proper_logo", "resources/icons/edit.png" },
+      { "proper_name", "Get " + var.name }, { "schema_id", getter_id },
+    };
+
+    CallIe("setup_schema_to_graph_ext", sj.dump());
+  }
+
+  static void CreateSetterSchema(
+      const std::string &session_id,
+      const TestCPP::Variable &var,
+      std::unordered_map<std::string, TestCPP::PinFormatInfo> &pin_format_cache) {
+    const std::string setter_id = std::string(kVarSetPrefix) + var.id;
+
+    nlohmann::json sj;
+    sj["session_id"] = session_id;
+    sj["context_name"] = kContextId;
+    sj["id"] = setter_id;
+    sj["type"] = "blueprint";
+    sj["label"] = "Set " + var.name;
+    sj["header_color"] = pin_format_cache[var.id].color;
+    sj["label_color"] = "#DEDEDE";
+    sj["status"] = "active";
+    sj["input_pins"] = nlohmann::json::array(
+        {
+            { { "id", "flow" }, { "name", "" }, { "type", "flow" } },
+            { { "id", "value" }, { "name", var.name }, { "type", var.type }, { "default_value", var.default_value } },
+        });
+    sj["output_pins"] = nlohmann::json::array({ { { "id", "flow" }, { "name", "" }, { "type", "flow" } } });
+    sj["spawnable"] = true;
+    sj["spawn_possibility"] = {
+      { "category", "Variables" },          { "proper_description", "" }, { "proper_logo", "resources/icons/edit.png" },
+      { "proper_name", "Set " + var.name }, { "schema_id", setter_id },
+    };
+
+    CallIe("setup_schema_to_graph_ext", sj.dump());
+  }
+
+  static void DeleteVarSchema(const std::string &session_id, const std::string &schema_id) {
+    nlohmann::json dj;
+    dj["session_id"] = session_id;
+    dj["schema_id"] = schema_id;
+    CallIe("delete_graph_ext_schema", dj.dump());
+  }
+
+  static bool SyncVariablesToGraph(
+      const std::string &session_id,
+      const std::shared_ptr<TestCPP::DrawerSession> &session,
+      std::unordered_map<std::string, TestCPP::PinFormatInfo> &pin_format_cache) {
+    if (session_id.empty() || !session)
+      return false;
+
+    nlohmann::json j;
+    j["session_id"] = session_id;
+    auto ret = CallIe("get_all_ext_schemas", j.dump());
+    const auto &rj = ret.get_json();
+
+    std::unordered_map<std::string, ExistingVarEntry> existing_getters;
+    std::unordered_map<std::string, ExistingVarEntry> existing_setters;
+    if (rj.contains("schemas") && rj["schemas"].is_array()) {
+      CollectExistingVarSchemas(rj["schemas"], existing_getters, existing_setters);
+    }
+
+    std::vector<std::string> assignable_types = FetchAssignableTypes(kContextId);
+
+    std::unordered_map<std::string, bool> wanted_ids;
+    bool changed = false;
+
+    for (auto &var : session->vars) {
+      if (!assignable_types.empty() &&
+          std::find(assignable_types.begin(), assignable_types.end(), var.type) == assignable_types.end()) {
+        var.type = assignable_types.front();
+      }
+
+      wanted_ids[var.id] = true;
+
+      auto git = existing_getters.find(var.id);
+      bool getter_matches = git != existing_getters.end() && git->second.label == var.name && git->second.type == var.type &&
+                            git->second.default_value == var.default_value;
+
+      auto sit = existing_setters.find(var.id);
+      bool setter_matches = sit != existing_setters.end() && sit->second.label == ("Set " + var.name) &&
+                            sit->second.type == var.type && sit->second.default_value == var.default_value;
+
+      if (!getter_matches) {
+        if (git != existing_getters.end())
+          DeleteVarSchema(session_id, git->second.schema_id);
+        CreateGetterSchema(session_id, var, pin_format_cache);
+        changed = true;
+      }
+      if (!setter_matches) {
+        if (sit != existing_setters.end())
+          DeleteVarSchema(session_id, sit->second.schema_id);
+        CreateSetterSchema(session_id, var, pin_format_cache);
+        changed = true;
       }
     }
 
-    for (const auto &var : session->vars) {
+    for (const auto &[var_id, entry] : existing_getters) {
+      if (wanted_ids.find(var_id) == wanted_ids.end()) {
+        DeleteVarSchema(session_id, entry.schema_id);
+        changed = true;
+      }
+    }
+    for (const auto &[var_id, entry] : existing_setters) {
+      if (wanted_ids.find(var_id) == wanted_ids.end()) {
+        DeleteVarSchema(session_id, entry.schema_id);
+        changed = true;
+      }
+    }
+
+    if (changed) {
       nlohmann::json sj;
       sj["session_id"] = session_id;
-      sj["context_name"] = kContextId;
-      sj["id"] = var.id;
-      sj["type"] = "simple";
-      sj["label"] = var.name;
-      sj["label_color"] = "#FFFFFF";
-      sj["status"] = "active";
-      sj["input_pins"] = nlohmann::json::array();
-      sj["output_pins"] = nlohmann::json::array({ { { "id", "value" }, { "name", "" }, { "type", var.type } } });
-      sj["spawnable"] = false;
-
-      CallIe("setup_schema_to_graph_ext", sj.dump());
+      CallIe("save_nodegraph", sj.dump());
     }
 
-    {
-      nlohmann::json j;
-      j["session_id"] = session_id;
-      CallIe("save_nodegraph", j.dump());
-    }
+    return changed;
   }
 
   static bool DrawCirclePlusButton(const ImVec2 &center, float radius) {
@@ -323,8 +510,7 @@ namespace ModuleUI {
       new_var.id = GenerateUniqueVariableId();
       new_var.name = "NewVar_" + std::to_string(session->vars.size());
       new_var.type = "bool";
-      new_var.value = "";
-      new_var.default_value = "";
+      new_var.default_value = DefaultValueForType(new_var.type);
 
       session->vars.push_back(new_var);
       session->selected_var = new_var.id;
@@ -344,9 +530,9 @@ namespace ModuleUI {
   }
 
   static int it = 1;
-  DrawerWindow::DrawerWindow(const std::string &parent_name, const std::string &id) {
+  DrawerWindow::DrawerWindow(const std::string &parent_name, const std::string &id, const std::string &st) {
     it++;
-
+    storage_path_ = st;
     parent_name_ = parent_name;
     id_ = id;
     app_window_ = std::make_shared<Cherry::AppWindow>("Drawe", "Drawer");
@@ -364,8 +550,9 @@ namespace ModuleUI {
     return app_window_;
   }
 
-  std::shared_ptr<DrawerWindow> DrawerWindow::create(const std::string &parent_name, const std::string &id) {
-    auto instance = std::shared_ptr<DrawerWindow>(new DrawerWindow(parent_name, id));
+  std::shared_ptr<DrawerWindow>
+  DrawerWindow::create(const std::string &parent_name, const std::string &id, const std::string &st) {
+    auto instance = std::shared_ptr<DrawerWindow>(new DrawerWindow(parent_name, id, st));
     instance->setup_render_callback();
     return instance;
   }
@@ -404,18 +591,44 @@ namespace ModuleUI {
       }
     }
 
-    if (gs_id_loaded && drawer_session_) {
-      if (CherryKit::ButtonText("Refresh").GetDataAs<bool>("isClicked")) {
-        RefreshVariablesFromGraph(gs_id_, drawer_session_);
+    if (drawer_session_ && !vars_loaded_from_file_) {
+      drawer_session_->vars = LoadVariablesFromFile(storage_path_);
+      vars_loaded_from_file_ = true;
+    }
+
+    if (gs_id_loaded && vars_loaded_from_file_ && !initial_sync_done_ && drawer_session_) {
+      SyncVariablesToGraph(gs_id_, drawer_session_, drawer_session_->pin_format_cache);
+      initial_sync_done_ = true;
+    }
+
+    if (TestCPP::get_session_need_refresh(id_)) {
+      TestCPP::set_session_need_refresh(id_, false);
+      if (drawer_session_) {
+        drawer_session_->vars = LoadVariablesFromFile(storage_path_);
+
+        if (!drawer_session_->selected_var.empty()) {
+          bool still_exists =
+              std::any_of(drawer_session_->vars.begin(), drawer_session_->vars.end(), [&](const TestCPP::Variable &v) {
+                return v.id == drawer_session_->selected_var;
+              });
+          if (!still_exists)
+            drawer_session_->selected_var.clear();
+        }
+
+        SyncVariablesToGraph(gs_id_, drawer_session_, drawer_session_->pin_format_cache);
       }
-      ImGui::SameLine();
-      if (CherryKit::ButtonText("Save").GetDataAs<bool>("isClicked")) {
-        SaveVariablesToGraph(gs_id_, drawer_session_);
+    }
+
+    if (TestCPP::get_session_need_save(id_)) {
+      TestCPP::set_session_need_save(id_, false);
+      if (drawer_session_) {
+        SaveVariablesToFile(storage_path_, drawer_session_->vars);
+        SyncVariablesToGraph(gs_id_, drawer_session_, drawer_session_->pin_format_cache);
       }
     }
 
     if (drawer_session_) {
-      CherryStyle::RemoveMarginX(35.0f);
+      CherryStyle::RemoveMarginX(32.0f);
       ShowVariablesPanel(drawer_session_);
     }
   }

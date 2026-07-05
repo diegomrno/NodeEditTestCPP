@@ -11,8 +11,7 @@
 namespace ModuleUI {
 
   static constexpr const char *kContextId = "testcpp";
-
-  static const std::vector<std::string> kVariableTypes = { "bool", "int", "float", "string" };
+  static constexpr const char *kFlowType = "flow";
 
   static ReturnValues CallIe(const char *action, const std::string &json) {
     auto args = ArgumentValues(json);
@@ -66,12 +65,33 @@ namespace ModuleUI {
     return inserted_it->second;
   }
 
+  static std::vector<std::string> FetchAssignableTypes(const std::string &context_id) {
+    std::vector<std::string> types;
+
+    nlohmann::json j;
+    j["context_id"] = context_id;
+    auto ret = CallIe("get_all_pin_formats", j.dump());
+    const auto &rj = ret.get_json();
+    if (!rj.contains("pin_formats") || !rj["pin_formats"].is_array())
+      return types;
+
+    for (const auto &pf_json : rj["pin_formats"]) {
+      std::string type = pf_json.value("type", "");
+      if (type.empty() || type == kFlowType)
+        continue;
+      types.push_back(type);
+    }
+
+    return types;
+  }
+
   static int it = 1;
-  DetailsWindow::DetailsWindow(const std::string &parent_name, const std::string &id) {
+  DetailsWindow::DetailsWindow(const std::string &parent_name, const std::string &id, const std::string &st) {
     it++;
     app_window_ = std::make_shared<Cherry::AppWindow>("Details", "Details");
     id_ = id;
     parent_name_ = parent_name;
+    storage_path_ = st;
     app_window_->SetDefaultBehavior(DefaultAppWindowBehaviors::DefaultDocking, "right");
     app_window_->m_CloseCallback = [=]() {
       Cherry::DeleteAppWindow(app_window_);
@@ -84,8 +104,9 @@ namespace ModuleUI {
     return app_window_;
   }
 
-  std::shared_ptr<DetailsWindow> DetailsWindow::create(const std::string &parent_name, const std::string &id) {
-    auto instance = std::shared_ptr<DetailsWindow>(new DetailsWindow(parent_name, id));
+  std::shared_ptr<DetailsWindow>
+  DetailsWindow::create(const std::string &parent_name, const std::string &id, const std::string &st) {
+    auto instance = std::shared_ptr<DetailsWindow>(new DetailsWindow(parent_name, id, st));
     instance->setup_render_callback();
     return instance;
   }
@@ -114,6 +135,11 @@ namespace ModuleUI {
       if (gsv) {
         drawer_session_ = gsv;
       }
+    }
+
+    if (!available_types_loaded_) {
+      available_types_ = FetchAssignableTypes(kContextId);
+      available_types_loaded_ = true;
     }
 
     if (!drawer_session_) {
@@ -152,7 +178,7 @@ namespace ModuleUI {
           GetOrFetchPinFormat(drawer_session_->pin_format_cache, kContextId, var.type);
 
       if (ImGui::BeginCombo("Type", current_pf.name.c_str())) {
-        for (const auto &type : kVariableTypes) {
+        for (const auto &type : available_types_) {
           const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(drawer_session_->pin_format_cache, kContextId, type);
           bool is_selected = (type == var.type);
 
@@ -173,9 +199,9 @@ namespace ModuleUI {
 
     {
       char buf[256];
-      std::snprintf(buf, sizeof(buf), "%s", var.value.c_str());
-      if (ImGui::InputText("Value", buf, sizeof(buf))) {
-        var.value = buf;
+      std::snprintf(buf, sizeof(buf), "%s", var.default_value.c_str());
+      if (ImGui::InputText("Default value", buf, sizeof(buf))) {
+        var.default_value = buf;
       }
     }
 

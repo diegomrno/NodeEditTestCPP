@@ -40,21 +40,23 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
   std::string id;
   fs::path full_path(path);
   std::string graph_path = path + "/cpp_sketch.ng";
-  auto inst = ModuleUI::TestCppWrapperAppWindow::create(full_path.filename());
-  Cherry::AddAppWindow(inst->get_app_window());
-  s_instances.push_back(inst);
+  std::string storage_path = path + "/storage.json";
 
   int session_id = ++i_session;
   TestCPP::set_session_link(std::to_string(session_id), "none");
   TestCPP::set_session_variables(std::to_string(session_id), std::make_shared<DrawerSession>());
 
+  auto inst = ModuleUI::TestCppWrapperAppWindow::create(full_path.filename(), std::to_string(i_session), storage_path);
+  Cherry::AddAppWindow(inst->get_app_window());
+  s_instances.push_back(inst);
+
   {
-    auto i = ModuleUI::DetailsWindow::create(full_path.filename(), std::to_string(i_session));
+    auto i = ModuleUI::DetailsWindow::create(full_path.filename(), std::to_string(i_session), storage_path);
     Cherry::AddAppWindow(i->get_app_window());
   }
 
   {
-    auto i = ModuleUI::DrawerWindow::create(full_path.filename(), std::to_string(i_session));
+    auto i = ModuleUI::DrawerWindow::create(full_path.filename(), std::to_string(i_session), storage_path);
     Cherry::AddAppWindow(i->get_app_window());
   }
 
@@ -78,11 +80,11 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
   }
 
   {
-    nlohmann::json j;
-    j["session_id"] = id;
-    auto args = ArgumentValues(j.dump());
-    auto ret = ReturnValues();
-    vxe::call_input_event("infinitehq.nodeedit", "refresh_nodegraph", args, ret);
+    // nlohmann::json j;
+    // j["session_id"] = id;
+    // auto args = ArgumentValues(j.dump());
+    // auto ret = ReturnValues();
+    // vxe::call_input_event("infinitehq.nodeedit", "refresh_nodegraph", args, ret);
   }
 }
 
@@ -110,6 +112,40 @@ void TestCPP::set_session_variables(
   if (!ctx)
     return;
   ctx->session_variables[session_id] = variables;
+}
+
+void TestCPP::set_session_need_refresh(const std::string &id, bool v) {
+  auto ctx = get_current_context();
+  if (!ctx)
+    return;
+  ctx->session_need_refresh[id] = v;
+}
+
+bool TestCPP::get_session_need_refresh(const std::string &id) {
+  auto ctx = get_current_context();
+  if (!ctx)
+    return false;
+  auto it = ctx->session_need_refresh.find(id);
+  if (it == ctx->session_need_refresh.end())
+    return false;
+  return it->second;
+}
+
+void TestCPP::set_session_need_save(const std::string &id, bool v) {
+  auto ctx = get_current_context();
+  if (!ctx)
+    return;
+  ctx->session_need_save[id] = v;
+}
+
+bool TestCPP::get_session_need_save(const std::string &id) {
+  auto ctx = get_current_context();
+  if (!ctx)
+    return "";
+  auto it = ctx->session_need_save.find(id);
+  if (it == ctx->session_need_save.end())
+    return "";
+  return it->second;
 }
 
 std::shared_ptr<TestCPP::DrawerSession> TestCPP::get_session_variables(const std::string &session_id) {
@@ -311,6 +347,58 @@ void TestCPP::setup_graph_ctx() {
       "proper_logo": "resources/icons/edit.png",
       "proper_name": "Is Int higher than Int",
       "schema_id": "is_int_higher_than_int"
+    }
+  })");
+
+  call(
+      "setup_schema",
+      R"({
+    "context_name": "testcpp",
+    "id": "varget",
+    "type": "simple",
+    "label": "Variable name",
+    "border_color":"#eb3461",
+    "background_color":"#eb346133",
+    "status": "active",
+    "input_pins": [
+    ],
+    "output_pins": [
+      { "id": "bool", "name": "", "type": "bool" }
+    ],
+    "spawnable": true,
+    "spawn_possibility": {
+      "category": "Utils",
+      "proper_description": "",
+      "proper_logo": "resources/icons/edit.png",
+      "proper_name": "get example",
+      "schema_id": "varget"
+    }
+  })");
+
+  call(
+      "setup_schema",
+      R"({
+    "context_name": "testcpp",
+    "id": "varset",
+    "type": "blueprint",
+    "label": "Set",
+    "header_color":"#eb3461",
+    "label_color":"#DEDEDE",
+    "status": "active",
+    "input_pins": [
+      { "id": "flow", "name": "", "type": "flow" },
+      { "id": "bool", "name": "Variable name", "type": "bool" }
+    ],
+    "output_pins": [
+      { "id": "flow", "name": "", "type": "flow" }
+    ],
+    "spawnable": true,
+    "spawn_possibility": {
+      "category": "Utils",
+      "proper_description": "",
+      "proper_logo": "resources/icons/edit.png",
+      "proper_name": "set example",
+      "schema_id": "varset"
     }
   })");
 }

@@ -26,7 +26,9 @@ static int i_session = 0;
 namespace TestCPP {
   struct Context {
     std::shared_ptr<ModuleInterface> interface;
-    std::unordered_map<std::string, std::string> session_links;                         // second = graph id
+    std::unordered_map<std::string, std::string> session_links;  // second = graph id
+    std::unordered_map<std::string, bool> session_need_save;
+    std::unordered_map<std::string, bool> session_need_refresh;
     std::unordered_map<std::string, std::shared_ptr<DrawerSession>> session_variables;  // second = drawer
     // TODO structure to hold variables and current edititng states
   };
@@ -53,6 +55,10 @@ namespace TestCPP {
   TESTCPP_API std::string get_session_link(const std::string &id);
   TESTCPP_API void set_session_variables(const std::string &id, const std::shared_ptr<DrawerSession> &variables);
   TESTCPP_API std::shared_ptr<DrawerSession> get_session_variables(const std::string &id);
+  TESTCPP_API void set_session_need_refresh(const std::string &id, bool v);
+  TESTCPP_API bool get_session_need_refresh(const std::string &id);
+  TESTCPP_API void set_session_need_save(const std::string &id, bool v);
+  TESTCPP_API bool get_session_need_save(const std::string &id);
 }  // namespace TestCPP
 
 #endif  // SAMPLE_MODULE_HPP
