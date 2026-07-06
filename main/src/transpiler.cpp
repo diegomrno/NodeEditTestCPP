@@ -192,11 +192,122 @@ namespace TestCPP {
         return "(" + lhs + " > " + rhs + ")";
       }
 
+      if (type_id == "add_int" || type_id == "add_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "", datas);
+        std::string b = ResolveInput(ctx, node_id, "b", "", datas);
+        return "(" + a + " + " + b + ")";
+      }
+
+      if (type_id == "subtract_int" || type_id == "subtract_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "", datas);
+        std::string b = ResolveInput(ctx, node_id, "b", "", datas);
+        return "(" + a + " - " + b + ")";
+      }
+
+      if (type_id == "multiply_int" || type_id == "multiply_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "", datas);
+        std::string b = ResolveInput(ctx, node_id, "b", "", datas);
+        return "(" + a + " * " + b + ")";
+      }
+
+      if (type_id == "divide_int" || type_id == "divide_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "", datas);
+        std::string b = ResolveInput(ctx, node_id, "b", "", datas);
+        return "(" + a + " / " + b + ")";
+      }
+
+      if (type_id == "min_int" || type_id == "min_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "", datas);
+        std::string b = ResolveInput(ctx, node_id, "b", "", datas);
+        return "std::min(" + a + ", " + b + ")";
+      }
+
+      if (type_id == "max_int" || type_id == "max_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "", datas);
+        std::string b = ResolveInput(ctx, node_id, "b", "", datas);
+        return "std::max(" + a + ", " + b + ")";
+      }
+
+      if (type_id == "clamp_int" || type_id == "clamp_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string v = ResolveInput(ctx, node_id, "value", "", datas);
+        std::string mn = ResolveInput(ctx, node_id, "min", "", datas);
+        std::string mx = ResolveInput(ctx, node_id, "max", "", datas);
+        return "std::clamp(" + v + ", " + mn + ", " + mx + ")";
+      }
+
+      if (type_id == "abs_int" || type_id == "abs_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "", datas);
+        return "std::abs(" + a + ")";
+      }
+
+      if (type_id == "round_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "float", datas);
+        return "static_cast<int>(std::round(" + a + "))";
+      }
+
+      if (type_id == "floor_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "float", datas);
+        return "static_cast<int>(std::floor(" + a + "))";
+      }
+
+      if (type_id == "ceil_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "float", datas);
+        return "static_cast<int>(std::ceil(" + a + "))";
+      }
+
+      if (type_id == "random_int") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string mn = ResolveInput(ctx, node_id, "min", "int", datas);
+        std::string mx = ResolveInput(ctx, node_id, "max", "int", datas);
+        return "(" + mn + " + (std::rand() % ((" + mx + ") - (" + mn + ") + 1)))";
+      }
+
+      if (type_id == "random_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string mn = ResolveInput(ctx, node_id, "min", "float", datas);
+        std::string mx = ResolveInput(ctx, node_id, "max", "float", datas);
+        return "(" + mn + " + static_cast<float>(std::rand()) / RAND_MAX * ((" + mx + ") - (" + mn + ")))";
+      }
+
+      if (type_id == "int_to_string" || type_id == "float_to_string") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "", datas);
+        return "std::to_string(" + a + ")";
+      }
+
+      if (type_id == "bool_to_string") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "bool", datas);
+        return "(std::string(" + a + " ? \"true\" : \"false\"))";
+      }
+
+      if (type_id == "string_to_int") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "string", datas);
+        return "std::stoi(" + a + ")";
+      }
+
+      if (type_id == "string_to_float") {
+        auto datas = GetNodeData(ctx, node_id);
+        std::string a = ResolveInput(ctx, node_id, "a", "string", datas);
+        return "std::stof(" + a + ")";
+      }
+
       ctx.had_error = true;
       return "/* TODO: unsupported expression node type '" + type_id + "' */ " +
              LiteralFromData(nlohmann::json::object(), "", expected_type);
     }
-
     void TranspileFlow(TranspileCtx &ctx, const std::string &node_id, int depth, std::string &out) {
       if (node_id.empty())
         return;
@@ -318,7 +429,11 @@ namespace TestCPP {
     file << "#include <iostream>\n";
     file << "#include <string>\n";
     file << "#include <thread>\n";
-    file << "#include <chrono>\n\n";
+    file << "#include <chrono>\n";
+    file << "#include <algorithm>\n";
+    file << "#include <cstdlib>\n";
+    file << "#include <cmath>\n";
+    file << "#include <string>\n\n";
 
     file << "// Variables \n";
     file << var_decls << "\n";

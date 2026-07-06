@@ -46,6 +46,7 @@ namespace TestCPP {
   TESTCPP_API std::shared_ptr<TestCPP::Context> get_current_context();
 
   TESTCPP_API std::string get_path(const std::string &path);
+  TESTCPP_API void create_nodegraph(const std::string &path);
 
   TESTCPP_API bool is_cpp_sketch(const std::string &path);
   TESTCPP_API void open_cpp_sketch(const std::string &path);

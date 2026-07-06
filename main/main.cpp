@@ -25,6 +25,9 @@ class infinitehq_testcpp : public ModuleInterface {
         "Edit this sketch",
         TestCPP::get_path("resources/icons/edit.png")));
 
+    this->add_content_browser_item_creator(
+        ItemCreatorInterface(TestCPP::create_nodegraph, "Create C++ Nodegraph", "Create nodegraph"));
+
     TestCPP::setup_graph_ctx();
   }
 

@@ -409,6 +409,77 @@ void TestCPP::setup_graph_ctx() {
       "schema_id": "is_int_higher_than_int"
     }
   })");
+
+  auto setup_simple_math = [&](const std::string &id,
+                               const std::string &label,
+                               const std::vector<std::pair<std::string, std::string>> &inputs,
+                               const std::string &out_type,
+                               const std::string &proper_name) {
+    std::string in_json;
+    for (auto &[pin_id, pin_type] : inputs) {
+      in_json += R"({ "id": ")" + pin_id + R"(", "name": "", "type": ")" + pin_type + R"(" },)";
+    }
+    if (!in_json.empty())
+      in_json.pop_back();
+
+    call(
+        "setup_schema",
+        R"({
+    "context_name": "testcpp",
+    "id": ")" +
+            id + R"(",
+    "type": "simple",
+    "label": ")" +
+            label + R"(",
+    "status": "active",
+    "input_pins": [ )" +
+            in_json + R"( ],
+    "output_pins": [
+      { "id": "out", "name": "", "type": ")" +
+            out_type + R"(" }
+    ],
+    "spawnable": true,
+    "spawn_possibility": {
+      "category": "Utils",
+      "proper_description": "",
+      "proper_logo": "resources/icons/edit.png",
+      "proper_name": ")" +
+            proper_name + R"(",
+      "schema_id": ")" +
+            id + R"("
+    }
+  })");
+  };
+
+  setup_simple_math("add_int", "+", { { "a", "int" }, { "b", "int" } }, "int", "Add (Int)");
+  setup_simple_math("subtract_int", "-", { { "a", "int" }, { "b", "int" } }, "int", "Subtract (Int)");
+  setup_simple_math("multiply_int", "*", { { "a", "int" }, { "b", "int" } }, "int", "Multiply (Int)");
+  setup_simple_math("divide_int", "/", { { "a", "int" }, { "b", "int" } }, "int", "Divide (Int)");
+  setup_simple_math("min_int", "Min", { { "a", "int" }, { "b", "int" } }, "int", "Min (Int)");
+  setup_simple_math("max_int", "Max", { { "a", "int" }, { "b", "int" } }, "int", "Max (Int)");
+  setup_simple_math("clamp_int", "Clamp", { { "value", "int" }, { "min", "int" }, { "max", "int" } }, "int", "Clamp (Int)");
+  setup_simple_math("abs_int", "Abs", { { "a", "int" } }, "int", "Abs (Int)");
+  setup_simple_math("random_int", "Random", { { "min", "int" }, { "max", "int" } }, "int", "Random Int");
+
+  setup_simple_math("add_float", "+", { { "a", "float" }, { "b", "float" } }, "float", "Add (Float)");
+  setup_simple_math("subtract_float", "-", { { "a", "float" }, { "b", "float" } }, "float", "Subtract (Float)");
+  setup_simple_math("multiply_float", "*", { { "a", "float" }, { "b", "float" } }, "float", "Multiply (Float)");
+  setup_simple_math("divide_float", "/", { { "a", "float" }, { "b", "float" } }, "float", "Divide (Float)");
+  setup_simple_math("min_float", "Min", { { "a", "float" }, { "b", "float" } }, "float", "Min (Float)");
+  setup_simple_math("max_float", "Max", { { "a", "float" }, { "b", "float" } }, "float", "Max (Float)");
+  setup_simple_math(
+      "clamp_float", "Clamp", { { "value", "float" }, { "min", "float" }, { "max", "float" } }, "float", "Clamp (Float)");
+  setup_simple_math("abs_float", "Abs", { { "a", "float" } }, "float", "Abs (Float)");
+  setup_simple_math("round_float", "Round", { { "a", "float" } }, "int", "Round");
+  setup_simple_math("floor_float", "Floor", { { "a", "float" } }, "int", "Floor");
+  setup_simple_math("ceil_float", "Ceil", { { "a", "float" } }, "int", "Ceil");
+  setup_simple_math("random_float", "Random", { { "min", "float" }, { "max", "float" } }, "float", "Random Float");
+
+  setup_simple_math("int_to_string", "To String", { { "a", "int" } }, "string", "Int To String");
+  setup_simple_math("float_to_string", "To String", { { "a", "float" } }, "string", "Float To String");
+  setup_simple_math("bool_to_string", "To String", { { "a", "bool" } }, "string", "Bool To String");
+  setup_simple_math("string_to_int", "To Int", { { "a", "string" } }, "int", "String To Int");
+  setup_simple_math("string_to_float", "To Float", { { "a", "string" } }, "float", "String To Float");
 }
 
 std::vector<TestCPP::Variable> TestCPP::load_variables_from_file(const std::string &storage_path) {
@@ -448,4 +519,93 @@ std::vector<TestCPP::Variable> TestCPP::load_variables_from_file(const std::stri
   }
 
   return result;
+}
+
+bool writeFile(const fs::path &filePath, const std::string &content) {
+  std::ofstream ofs(filePath, std::ios::out | std::ios::trunc | std::ios::binary);
+  if (!ofs.is_open()) {
+    // TODO: err
+    return false;
+  }
+
+  ofs << content;
+  if (!ofs.good()) {
+    // TODO: err
+    return false;
+  }
+
+  ofs.close();
+  if (ofs.fail()) {
+    // TODO: err
+    return false;
+  }
+
+  return true;
+}
+
+bool createDirectorySafely(const fs::path &dirPath) {
+  std::error_code ec;
+
+  const auto status = fs::symlink_status(dirPath, ec);
+  if (ec && ec != std::errc::no_such_file_or_directory) {
+    // TODO: err
+    return false;
+  }
+
+  if (fs::exists(status)) {
+    if (fs::is_symlink(status)) {
+      // TODO: err
+      return false;
+    }
+    if (!fs::is_directory(status)) {
+      // TODO: err
+      return false;
+    }
+    return true;
+  }
+
+  fs::create_directories(dirPath, ec);
+  if (ec) {
+    // TODO: err
+    return false;
+  }
+
+  return true;
+}
+
+void TestCPP::create_nodegraph(const std::string &path) {
+  if (path.empty()) {
+    // TODO: err
+    return;
+  }
+
+  std::error_code ec;
+
+  const fs::path rootPath = fs::weakly_canonical(fs::absolute(fs::path(path), ec), ec);
+  if (ec) {
+    // TODO: err
+    return;
+  }
+  if (!createDirectorySafely(rootPath)) {
+    return;
+  }
+
+  const fs::path ngDir = rootPath / "cpp_sketch.ng";
+  if (!createDirectorySafely(ngDir)) {
+    return;
+  }
+
+  const fs::path nodegraphFile = ngDir / "graph.nodegraph";
+  static const std::string nodegraphContent = R"({"context_id": "testcpp", "graph": {}})";
+
+  if (!writeFile(nodegraphFile, nodegraphContent)) {
+    return;
+  }
+
+  const fs::path storageFile = rootPath / "storage.json";
+  static const std::string storageContent = "{}";
+
+  if (!writeFile(storageFile, storageContent)) {
+    return;
+  }
 }

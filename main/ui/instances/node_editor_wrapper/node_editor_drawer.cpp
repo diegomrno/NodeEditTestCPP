@@ -283,10 +283,10 @@ namespace ModuleUI {
     sj["status"] = "active";
     sj["input_pins"] = nlohmann::json::array(
         {
-            { { "id", "flow" }, { "name", "" }, { "type", "flow" } },
+            { { "id", "input_flow" }, { "name", "" }, { "type", "flow" } },
             { { "id", "value" }, { "name", var.name }, { "type", var.type }, { "default_value", var.default_value } },
         });
-    sj["output_pins"] = nlohmann::json::array({ { { "id", "flow" }, { "name", "" }, { "type", "flow" } } });
+    sj["output_pins"] = nlohmann::json::array({ { { "id", "output_flow" }, { "name", "" }, { "type", "flow" } } });
     sj["spawnable"] = true;
     sj["spawn_possibility"] = {
       { "category", "Variables" },          { "proper_description", "" }, { "proper_logo", "resources/icons/edit.png" },
