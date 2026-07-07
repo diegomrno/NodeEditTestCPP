@@ -540,7 +540,7 @@ namespace ModuleUI {
     storage_path_ = st;
     parent_name_ = parent_name;
     id_ = id;
-    app_window_ = std::make_shared<Cherry::AppWindow>("Drawe", "Drawer");
+    app_window_ = std::make_shared<Cherry::AppWindow>("Drawer", "Drawer");
 
     app_window_->SetDefaultBehavior(DefaultAppWindowBehaviors::DefaultDocking, "left");
 

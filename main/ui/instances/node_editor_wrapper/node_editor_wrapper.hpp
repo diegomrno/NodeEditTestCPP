@@ -83,5 +83,32 @@ namespace ModuleUI {
     bool initial_sync_done_ = false;
   };
 
+  class ComponentsWindow : public std::enable_shared_from_this<ComponentsWindow> {
+   public:
+    ComponentsWindow(const std::string &parent_name, const std::string &id, const std::string &st);
+    void menubar();
+    std::shared_ptr<Cherry::AppWindow> &get_app_window();
+    static std::shared_ptr<ComponentsWindow>
+    create(const std::string &parent_name, const std::string &id, const std::string &st);
+    void render();
+    bool i = false;
+    void setup_render_callback();
+
+   private:
+    std::shared_ptr<VxContext> ctx;
+    std::shared_ptr<TestCPP::DrawerSession> drawer_session_ = nullptr;
+    std::shared_ptr<Cherry::AppWindow> app_window_;
+    std::string parent_name_;
+    std::string id_;
+    std::string storage_path_;
+    std::string gs_id_ = "none";
+    bool gs_id_loaded = false;
+    bool refreshed = false;
+    bool saved = false;
+    bool opened;
+    bool vars_loaded_from_file_ = false;
+    bool initial_sync_done_ = false;
+  };
+
 };  // namespace ModuleUI
 #endif  // NODE_EDITOR_WRAPPER_HPP

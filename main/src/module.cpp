@@ -54,9 +54,13 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
     auto i = ModuleUI::DetailsWindow::create(full_path.filename(), std::to_string(i_session), storage_path);
     Cherry::AddAppWindow(i->get_app_window());
   }
-
   {
     auto i = ModuleUI::DrawerWindow::create(full_path.filename(), std::to_string(i_session), storage_path);
+    Cherry::AddAppWindow(i->get_app_window());
+  }
+
+  {
+    auto i = ModuleUI::ComponentsWindow::create(full_path.filename(), std::to_string(i_session), storage_path);
     Cherry::AddAppWindow(i->get_app_window());
   }
 
@@ -294,6 +298,35 @@ void TestCPP::setup_graph_ctx() {
       "proper_logo": "resources/icons/edit.png",
       "proper_name": "Sleep",
       "schema_id": "sleep"
+    }
+  })");
+
+  call(
+      "setup_schema",
+      R"({
+    "context_name": "testcpp",
+    "id": "close",
+    "type": "blueprint",
+    "status": "active",
+    "second_label": "Stop and close the program",
+    "second_label_color": "#8a88f2",
+    "label": "Stop",
+    "label_color": "#ABABAB",
+    "header_color": "#3a4bab",
+    "header_logo_path": ")" +
+          foo_logo_path_escaped + R"(",
+    "input_pins": [
+      { "id": "input_flow", "name": "", "type": "flow" }
+    ],
+    "output_pins": [
+    ],
+    "spawnable": true,
+    "spawn_possibility": {
+      "category": "Functions",
+      "proper_description": "Close and stop the program",
+      "proper_logo": "resources/icons/edit.png",
+      "proper_name": "Close",
+      "schema_id": "close"
     }
   })");
 

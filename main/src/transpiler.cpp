@@ -332,7 +332,10 @@ namespace TestCPP {
         out += Indent(depth) + "std::this_thread::sleep_for(std::chrono::seconds(" + seconds + "));\n";
         for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
-
+      } else if (type_id == "close") {
+        out += Indent(depth) + "TriggerClose();\n";
+        for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
+          TranspileFlow(ctx, next, depth, out);
       } else if (type_id == "branch") {
         auto datas = GetNodeData(ctx, node_id);
         std::string cond = ResolveInput(ctx, node_id, "bool", "bool", datas);
@@ -441,10 +444,14 @@ namespace TestCPP {
     file << "void OnSetup();\n";
     file << "void OnLoop();\n\n";
 
+    file << "static bool need_close = false;\n\n";
+    file << "void TriggerClose() {need_close = true;}\n\n";
+
     file << "int main() {\n";
     file << "  OnSetup();\n";
     file << "  while (true) {\n";
     file << "    OnLoop();\n";
+    file << "    if(need_close) break;\n";
     file << "  }\n";
     file << "  return 0;\n";
     file << "}\n\n";

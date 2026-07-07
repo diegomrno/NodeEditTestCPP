@@ -163,47 +163,44 @@ namespace ModuleUI {
 
     TestCPP::Variable &var = *it;
 
+    std::string name = var.name;
+    std::string def_val = var.default_value;
+
+    CherryKit::TableSimple(
+        "Details",
+        { CherryKit::KeyValString("Name", &name),
+          CherryKit::KeyValCustom(
+              "Type",
+              [this, &var]() {
+                const TestCPP::PinFormatInfo &current_pf =
+                    GetOrFetchPinFormat(drawer_session_->pin_format_cache, kContextId, var.type);
+
+                if (ImGui::BeginCombo("Type", current_pf.name.c_str())) {
+                  for (const auto &type : available_types_) {
+                    const TestCPP::PinFormatInfo &pf =
+                        GetOrFetchPinFormat(drawer_session_->pin_format_cache, kContextId, type);
+                    bool is_selected = (type == var.type);
+
+                    ImGui::PushStyleColor(ImGuiCol_Text, ParseHexColor(pf.color));
+                    bool clicked = ImGui::Selectable(pf.name.c_str(), is_selected);
+                    ImGui::PopStyleColor();
+
+                    if (clicked) {
+                      var.type = type;
+                    }
+                    if (is_selected) {
+                      ImGui::SetItemDefaultFocus();
+                    }
+                  }
+                  ImGui::EndCombo();
+                }
+              }),
+          CherryKit::KeyValString("Default value", &def_val) });
+
+    var.name = name;
+    var.default_value = def_val;
+
     CherryKit::TitleOne(var.name);
-
-    {
-      char buf[256];
-      std::snprintf(buf, sizeof(buf), "%s", var.name.c_str());
-      if (ImGui::InputText("Name", buf, sizeof(buf))) {
-        var.name = buf;
-      }
-    }
-
-    {
-      const TestCPP::PinFormatInfo &current_pf =
-          GetOrFetchPinFormat(drawer_session_->pin_format_cache, kContextId, var.type);
-
-      if (ImGui::BeginCombo("Type", current_pf.name.c_str())) {
-        for (const auto &type : available_types_) {
-          const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(drawer_session_->pin_format_cache, kContextId, type);
-          bool is_selected = (type == var.type);
-
-          ImGui::PushStyleColor(ImGuiCol_Text, ParseHexColor(pf.color));
-          bool clicked = ImGui::Selectable(pf.name.c_str(), is_selected);
-          ImGui::PopStyleColor();
-
-          if (clicked) {
-            var.type = type;
-          }
-          if (is_selected) {
-            ImGui::SetItemDefaultFocus();
-          }
-        }
-        ImGui::EndCombo();
-      }
-    }
-
-    {
-      char buf[256];
-      std::snprintf(buf, sizeof(buf), "%s", var.default_value.c_str());
-      if (ImGui::InputText("Default value", buf, sizeof(buf))) {
-        var.default_value = buf;
-      }
-    }
 
     ImGui::Spacing();
     if (CherryKit::ButtonText("Delete variable").GetDataAs<bool>("isClicked")) {
