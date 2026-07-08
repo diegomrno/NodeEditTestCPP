@@ -6,3 +6,7 @@ This shows a visual coding example for a C++ terminal application.
 ### Result : 
 
 <img width="173" height="161" alt="image" src="https://github.com/user-attachments/assets/fb9aecde-e2b9-4804-96b5-867b541f81c1" />
+
+> [!IMPORTANT]
+> This is in active development!
+> This example is built on the "NodeEdit" Vortex module (using [Cherry](https://github.com/infiniteHQ/Cherry) for node graphs). I'm working on making this project "easy-to-try" as a simple module to simply add to your Vortex project, so stay tuned! :)
