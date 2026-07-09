@@ -147,60 +147,148 @@ namespace ModuleUI {
       return;
     }
 
-    if (drawer_session_->selected_var.empty()) {
+    if (drawer_session_->selected_var.empty() && drawer_session_->selected_function.empty()) {
       ImGui::TextDisabled("(select a variable or a function)");
       return;
     }
 
-    auto it = std::find_if(drawer_session_->vars.begin(), drawer_session_->vars.end(), [&](const TestCPP::Variable &v) {
-      return v.id == drawer_session_->selected_var;
-    });
+    // Function details
+    if (!drawer_session_->selected_function.empty()) {
+      auto it = std::find_if(
+          drawer_session_->functions.begin(), drawer_session_->functions.end(), [&](const TestCPP::Function &v) {
+            return v.id == drawer_session_->selected_function;
+          });
 
-    if (it == drawer_session_->vars.end()) {
-      ImGui::TextDisabled("(variable not found)");
-      return;
-    }
-
-    TestCPP::Variable &var = *it;
-
-    std::string name = var.name;
-    std::string def_val = var.default_value;
-
-    static std::vector<std::string> types;
-    static bool i = false;
-    if (!i) {
-      for (const auto &type : available_types_) {
-        types.push_back(type);
+      if (it == drawer_session_->functions.end()) {
+        ImGui::TextDisabled("(function not found)");
+        return;
       }
-      i = true;
+
+      TestCPP::Function &foo = *it;
+
+      std::string name = foo.name;
+
+      CherryKit::TableSimple("Details", { CherryKit::KeyValParent("General", { CherryKit::KeyValString("Name", &name) }) });
+      foo.name = name;
+
+      ImGui::Spacing();
+
+      auto DrawPinEditor = [&](const char *title, std::vector<std::pair<std::string, std::string>> &pins) {
+        if (ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen)) {
+          for (int i = 0; i < (int)pins.size(); i++) {
+            ImGui::PushID((std::string(title) + std::to_string(i)).c_str());
+
+            std::string type = pins[i].first;
+            std::string name = pins[i].second;
+
+            char type_buf[128];
+            char name_buf[128];
+
+            snprintf(type_buf, sizeof(type_buf), "%s", type.c_str());
+            snprintf(name_buf, sizeof(name_buf), "%s", name.c_str());
+
+            ImGui::SetNextItemWidth(120);
+            if (ImGui::InputText("Type", type_buf, sizeof(type_buf))) {
+              pins[i].first = type_buf;
+            }
+
+            ImGui::SameLine();
+
+            ImGui::SetNextItemWidth(120);
+            if (ImGui::InputText("Name", name_buf, sizeof(name_buf))) {
+              pins[i].second = name_buf;
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("X")) {
+              pins.erase(pins.begin() + i);
+              ImGui::PopID();
+              break;
+            }
+
+            ImGui::PopID();
+          }
+
+          if (ImGui::Button((std::string("+ Add ") + title).c_str())) {
+            pins.push_back({ "", "" });
+          }
+        }
+      };
+
+      DrawPinEditor("Inputs", foo.inputs);
+      DrawPinEditor("Outputs", foo.outputs);
+
+      ImGui::Spacing();
+
+      ImGui::Spacing();
+      if (CherryKit::ButtonText("Delete function").GetDataAs<bool>("isClicked")) {
+        std::string deleted_id = foo.id;
+        drawer_session_->functions.erase(
+            std::remove_if(
+                drawer_session_->functions.begin(),
+                drawer_session_->functions.end(),
+                [&](const TestCPP::Function &v) { return v.id == deleted_id; }),
+            drawer_session_->functions.end());
+
+        if (drawer_session_->selected_function == deleted_id) {
+          drawer_session_->selected_function.clear();
+        }
+      }
     }
-    static bool te = false;
 
-    CherryKit::TableSimple(
-        "Details",
-        { CherryKit::KeyValParent(
-              "General",
-              { CherryKit::KeyValString("Name", &name),
-                CherryKit::KeyValComboString(CherryID("TYPEID"), "Type", &types),
-                CherryKit::KeyValString("Default value", &def_val) }),
-          CherryKit::KeyValParent("Todo", { CherryKit::KeyValBool("Read only", &te) }) });
+    // Variable details
+    if (!drawer_session_->selected_var.empty()) {
+      auto it = std::find_if(drawer_session_->vars.begin(), drawer_session_->vars.end(), [&](const TestCPP::Variable &v) {
+        return v.id == drawer_session_->selected_var;
+      });
 
-    var.type = CherryApp.GetComponent(CherryID("TYPEID")).GetData("selected_string");
-    var.name = name;
-    var.default_value = def_val;
+      if (it == drawer_session_->vars.end()) {
+        ImGui::TextDisabled("(variable not found)");
+        return;
+      }
 
-    ImGui::Spacing();
-    if (CherryKit::ButtonText("Delete variable").GetDataAs<bool>("isClicked")) {
-      std::string deleted_id = var.id;
-      drawer_session_->vars.erase(
-          std::remove_if(
-              drawer_session_->vars.begin(),
-              drawer_session_->vars.end(),
-              [&](const TestCPP::Variable &v) { return v.id == deleted_id; }),
-          drawer_session_->vars.end());
+      TestCPP::Variable &var = *it;
 
-      if (drawer_session_->selected_var == deleted_id) {
-        drawer_session_->selected_var.clear();
+      std::string name = var.name;
+      std::string def_val = var.default_value;
+
+      static std::vector<std::string> types;
+      static bool i = false;
+      if (!i) {
+        for (const auto &type : available_types_) {
+          types.push_back(type);
+        }
+        i = true;
+      }
+      static bool te = false;
+
+      CherryKit::TableSimple(
+          "Details Variables",
+          { CherryKit::KeyValParent(
+                "General var",
+                { CherryKit::KeyValString("Name", &name),
+                  CherryKit::KeyValComboString(CherryID("TYPEID"), "Type", &types),
+                  CherryKit::KeyValString("Default value", &def_val) }),
+            CherryKit::KeyValParent("TEST", { CherryKit::KeyValBool("Read only", &te) }) });
+
+      var.type = CherryApp.GetComponent(CherryID("TYPEID")).GetData("selected_string");
+      var.name = name;
+      var.default_value = def_val;
+
+      ImGui::Spacing();
+      if (CherryKit::ButtonText("Delete variable").GetDataAs<bool>("isClicked")) {
+        std::string deleted_id = var.id;
+        drawer_session_->vars.erase(
+            std::remove_if(
+                drawer_session_->vars.begin(),
+                drawer_session_->vars.end(),
+                [&](const TestCPP::Variable &v) { return v.id == deleted_id; }),
+            drawer_session_->vars.end());
+
+        if (drawer_session_->selected_var == deleted_id) {
+          drawer_session_->selected_var.clear();
+        }
       }
     }
   }

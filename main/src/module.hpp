@@ -50,6 +50,7 @@ namespace TestCPP {
 
   TESTCPP_API bool is_cpp_sketch(const std::string &path);
   TESTCPP_API void open_cpp_sketch(const std::string &path);
+  TESTCPP_API std::string open_cpp_sketch_function(const std::string &path, const std::string &parent);
 
   TESTCPP_API void setup_graph_ctx();
   TESTCPP_API void set_session_link(const std::string &id, const std::string &graph_id);

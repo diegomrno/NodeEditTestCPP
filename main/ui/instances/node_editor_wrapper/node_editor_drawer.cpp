@@ -15,21 +15,12 @@ namespace ModuleUI {
   static constexpr const char *kContextId = "testcpp";
   static constexpr const char *kVarIdPrefix = "v_";
   static constexpr const char *kVarGetPrefix = "varget_";
+  static constexpr const char *kVarInputFoo = "input_foo_";
+  static constexpr const char *kVarOutputFoo = "output_foo_";
   static constexpr const char *kVarSetPrefix = "varset_";
 
   static bool StartsWith(const std::string &s, const std::string &prefix) {
     return s.rfind(prefix, 0) == 0;
-  }
-
-  static std::string GenerateUniqueVariableId() {
-    static std::atomic<uint64_t> s_counter{ 0 };
-    uint64_t counter = s_counter.fetch_add(1, std::memory_order_relaxed);
-    uint64_t ns =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-
-    std::ostringstream oss;
-    oss << kVarIdPrefix << ns << "_" << counter;
-    return oss.str();
   }
 
   static std::string DefaultValueForType(const std::string &type) {
@@ -158,6 +149,69 @@ namespace ModuleUI {
     return result;
   }
 
+  static std::vector<TestCPP::Function> LoadFunctionsFromFile(const std::string &storage_path) {
+    std::vector<TestCPP::Function> result;
+
+    if (storage_path.empty())
+      return result;
+
+    std::filesystem::path p(storage_path);
+
+    try {
+      if (!std::filesystem::exists(p)) {
+        if (p.has_parent_path())
+          std::filesystem::create_directories(p.parent_path());
+
+        nlohmann::json seed;
+        seed["functions"] = nlohmann::json::array();
+
+        std::ofstream out(p);
+        if (out.is_open())
+          out << seed.dump(2);
+
+        return result;
+      }
+
+      std::ifstream in(p);
+      if (!in.is_open()) {
+        std::cerr << "[TestCPP] Could not open '" << storage_path << "' for reading." << std::endl;
+        return result;
+      }
+
+      nlohmann::json j;
+      in >> j;
+
+      if (j.contains("functions") && j["functions"].is_array()) {
+        for (const auto &fj : j["functions"]) {
+          TestCPP::Function func;
+
+          func.id = fj.value("id", "");
+          func.name = fj.value("name", "");
+
+          if (fj.contains("inputs") && fj["inputs"].is_array()) {
+            for (const auto &pin : fj["inputs"]) {
+              func.inputs.emplace_back(pin.value("type", ""), pin.value("name", ""));
+            }
+          }
+
+          if (fj.contains("outputs") && fj["outputs"].is_array()) {
+            for (const auto &pin : fj["outputs"]) {
+              func.outputs.emplace_back(pin.value("type", ""), pin.value("name", ""));
+            }
+          }
+
+          if (!func.id.empty())
+            result.push_back(std::move(func));
+        }
+      }
+    } catch (const std::exception &e) {
+      std::cerr << "[TestCPP] Failed to load functions from '" << storage_path << "': " << e.what() << std::endl;
+      result.clear();
+    }
+
+    return result;
+  }
+
   static void SaveVariablesToFile(const std::string &storage_path, const std::vector<TestCPP::Variable> &vars) {
     if (storage_path.empty())
       return;
@@ -169,18 +223,95 @@ namespace ModuleUI {
         std::filesystem::create_directories(p.parent_path());
 
       nlohmann::json j;
+
+      if (std::filesystem::exists(p)) {
+        std::ifstream in(p);
+        if (in.is_open()) {
+          try {
+            in >> j;
+          } catch (...) {
+            j = nlohmann::json::object();
+          }
+        }
+      }
+
+      if (!j.is_object())
+        j = nlohmann::json::object();
+
       j["vars"] = nlohmann::json::array();
-      for (const auto &v : vars)
-        j["vars"].push_back(v);
+
+      for (const auto &v : vars) {
+        j["vars"].push_back(
+            { { "id", v.id }, { "name", v.name }, { "type", v.type }, { "default_value", v.default_value } });
+      }
 
       std::ofstream out(p);
       if (!out.is_open()) {
         std::cerr << "[TestCPP] Could not open '" << storage_path << "' for writing." << std::endl;
         return;
       }
+
       out << j.dump(2);
     } catch (const std::exception &e) {
       std::cerr << "[TestCPP] Failed to save variables to '" << storage_path << "': " << e.what() << std::endl;
+    }
+  }
+
+  static void SaveFunctionsToFile(const std::string &storage_path, const std::vector<TestCPP::Function> &functions) {
+    if (storage_path.empty())
+      return;
+
+    std::filesystem::path p(storage_path);
+
+    try {
+      if (p.has_parent_path())
+        std::filesystem::create_directories(p.parent_path());
+
+      nlohmann::json j;
+
+      if (std::filesystem::exists(p)) {
+        std::ifstream in(p);
+        if (in.is_open()) {
+          try {
+            in >> j;
+          } catch (...) {
+            j = nlohmann::json::object();
+          }
+        }
+      }
+
+      if (!j.is_object())
+        j = nlohmann::json::object();
+      j["functions"] = nlohmann::json::array();
+
+      for (const auto &f : functions) {
+        nlohmann::json jf;
+
+        jf["id"] = f.id;
+        jf["name"] = f.name;
+
+        jf["inputs"] = nlohmann::json::array();
+        for (const auto &[type, name] : f.inputs) {
+          jf["inputs"].push_back({ { "type", type }, { "name", name } });
+        }
+
+        jf["outputs"] = nlohmann::json::array();
+        for (const auto &[type, name] : f.outputs) {
+          jf["outputs"].push_back({ { "type", type }, { "name", name } });
+        }
+
+        j["functions"].push_back(std::move(jf));
+      }
+
+      std::ofstream out(p);
+      if (!out.is_open()) {
+        std::cerr << "[TestCPP] Could not open '" << storage_path << "' for writing." << std::endl;
+        return;
+      }
+
+      out << j.dump(2);
+    } catch (const std::exception &e) {
+      std::cerr << "[TestCPP] Failed to save functions to '" << storage_path << "': " << e.what() << std::endl;
     }
   }
 
@@ -191,6 +322,13 @@ namespace ModuleUI {
       std::string label;
       std::string type;
       std::string default_value;
+    };
+
+    struct ExistingFunctionEntry {
+      std::string schema_id;
+      std::string label;
+      std::vector<std::pair<std::string, std::string>> inputs;
+      std::vector<std::pair<std::string, std::string>> outputs;
     };
   }  // namespace
 
@@ -232,6 +370,139 @@ namespace ModuleUI {
         setters[entry.var_id] = std::move(entry);
       }
     }
+  }
+
+  static void CollectExistingFunctionSchemas(
+      const nlohmann::json &schemas_json,
+      std::unordered_map<std::string, ExistingFunctionEntry> &functions) {
+    for (const auto &schema_json : schemas_json) {
+      if (schema_json.value("type", "") != "blueprint")
+        continue;
+
+      const std::string schema_id = schema_json.value("id", "");
+      if (StartsWith(schema_id, kVarGetPrefix) || StartsWith(schema_id, kVarSetPrefix))
+        continue;
+
+      ExistingFunctionEntry entry;
+      entry.schema_id = schema_id;
+      entry.label = schema_json.value("label", "");
+
+      if (schema_json.contains("input_pins") && schema_json["input_pins"].is_array()) {
+        for (const auto &pin : schema_json["input_pins"]) {
+          if (pin.value("type", "") == "flow")
+            continue;
+
+          entry.inputs.emplace_back(pin.value("type", ""), pin.value("name", ""));
+        }
+      }
+
+      if (schema_json.contains("output_pins") && schema_json["output_pins"].is_array()) {
+        for (const auto &pin : schema_json["output_pins"]) {
+          if (pin.value("type", "") == "flow")
+            continue;
+
+          entry.outputs.emplace_back(pin.value("type", ""), pin.value("name", ""));
+        }
+      }
+
+      functions[schema_id] = std::move(entry);
+    }
+  }
+
+  static void CreateStartFunctionSchema(
+      const std::string &session_id,
+      const TestCPP::Function &foo,
+      std::unordered_map<std::string, TestCPP::PinFormatInfo> &pin_format_cache) {
+    const std::string function_id = std::string(kVarInputFoo) + foo.id;
+
+    const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(pin_format_cache, kContextId, "flow");
+
+    nlohmann::json sj;
+    sj["session_id"] = session_id;
+    sj["context_name"] = kContextId;
+    sj["id"] = function_id;
+    sj["type"] = "simple";
+    sj["label"] = foo.name;
+    sj["border_color"] = pf.color;
+    sj["label_color"] = "#DEDEDE";
+    sj["background_color"] = pf.color + "33";
+    sj["status"] = "active";
+
+    sj["input_pins"] = nlohmann::json::array();
+
+    sj["output_pins"] = nlohmann::json::array();
+
+    for (const auto &[type, name] : foo.inputs) {
+      sj["output_pins"].push_back(
+          {
+              { "id", name },
+              { "name", name },
+              { "type", type },
+          });
+    }
+
+    sj["output_pins"].push_back(
+        {
+            { "id", "output" },
+            { "name", "" },
+            { "type", "flow" },
+        });
+
+    sj["spawnable"] = true;
+    sj["spawn_possibility"] = {
+      { "category", "Functions" }, { "proper_description", "" }, { "proper_logo", "resources/icons/edit.png" },
+      { "proper_name", foo.name }, { "schema_id", function_id },
+    };
+
+    CallIe("setup_schema_to_graph_ext", sj.dump());
+  }
+
+  static void CreateEndFunctionSchema(
+      const std::string &session_id,
+      const TestCPP::Function &foo,
+      std::unordered_map<std::string, TestCPP::PinFormatInfo> &pin_format_cache) {
+    const std::string function_id = std::string(kVarOutputFoo) + foo.id;
+
+    const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(pin_format_cache, kContextId, "flow");
+
+    nlohmann::json sj;
+    sj["session_id"] = session_id;
+    sj["context_name"] = kContextId;
+    sj["id"] = function_id;
+    sj["type"] = "simple";
+    sj["label"] = foo.name;
+    sj["border_color"] = pf.color;
+    sj["label_color"] = "#DEDEDE";
+    sj["background_color"] = pf.color + "33";
+    sj["status"] = "active";
+
+    sj["input_pins"] = nlohmann::json::array();
+
+    for (const auto &[type, name] : foo.outputs) {
+      sj["input_pins"].push_back(
+          {
+              { "id", name },
+              { "name", name },
+              { "type", type },
+          });
+    }
+
+    sj["output_pins"] = nlohmann::json::array();
+
+    sj["input_pins"].push_back(
+        {
+            { "id", "input" },
+            { "name", "" },
+            { "type", "flow" },
+        });
+
+    sj["spawnable"] = true;
+    sj["spawn_possibility"] = {
+      { "category", "Functions" }, { "proper_description", "" }, { "proper_logo", "resources/icons/edit.png" },
+      { "proper_name", foo.name }, { "schema_id", function_id },
+    };
+
+    CallIe("setup_schema_to_graph_ext", sj.dump());
   }
 
   static void CreateGetterSchema(
@@ -378,6 +649,109 @@ namespace ModuleUI {
     return changed;
   }
 
+  static void CreateFunctionSchema(const std::string &session_id, const TestCPP::Function &func) {
+    nlohmann::json sj;
+    sj["session_id"] = session_id;
+    sj["context_name"] = kContextId;
+    sj["id"] = func.id;
+    sj["type"] = "blueprint";
+    sj["label"] = func.name;
+    sj["status"] = "active";
+
+    sj["header_color"] = "#3a4bab";
+    sj["label_color"] = "#DEDEDE";
+
+    auto MakePinId = [](std::string s) {
+      std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+        if (c == ' ')
+          return '_';
+        return (char)std::tolower(c);
+      });
+      return s;
+    };
+
+    sj["input_pins"] = nlohmann::json::array();
+    sj["output_pins"] = nlohmann::json::array();
+
+    sj["input_pins"].push_back({ { "id", "input_flow" }, { "name", "" }, { "type", "flow" } });
+
+    for (const auto &[type, name] : func.inputs) {
+      sj["input_pins"].push_back({ { "id", MakePinId(name) }, { "name", name }, { "type", type } });
+    }
+
+    sj["output_pins"].push_back({ { "id", "output_flow" }, { "name", "" }, { "type", "flow" } });
+
+    for (const auto &[type, name] : func.outputs) {
+      sj["output_pins"].push_back({ { "id", MakePinId(name) }, { "name", name }, { "type", type } });
+    }
+
+    sj["spawnable"] = true;
+    sj["spawn_possibility"] = {
+      { "category", "Functions" },  { "proper_description", "" }, { "proper_logo", "resources/icons/edit.png" },
+      { "proper_name", func.name }, { "schema_id", func.id },
+    };
+
+    CallIe("setup_schema_to_graph_ext", sj.dump());
+  }
+
+  // TODO : SyncVariablesToFunctionGraph (access to global variables)
+
+  // Only for external use
+  static bool SyncFunctionsToGraph(const std::string &session_id, const std::shared_ptr<TestCPP::DrawerSession> &session) {
+    if (session_id.empty() || !session)
+      return false;
+
+    nlohmann::json j;
+    j["session_id"] = session_id;
+
+    auto ret = CallIe("get_all_ext_schemas", j.dump());
+    const auto &rj = ret.get_json();
+
+    std::unordered_map<std::string, ExistingFunctionEntry> existing_functions;
+
+    if (rj.contains("schemas") && rj["schemas"].is_array())
+      CollectExistingFunctionSchemas(rj["schemas"], existing_functions);
+
+    std::unordered_map<std::string, bool> wanted_ids;
+
+    bool changed = false;
+
+    for (const auto &func : session->functions) {
+      wanted_ids[func.id] = true;
+
+      auto it = existing_functions.find(func.id);
+
+      bool matches = false;
+
+      if (it != existing_functions.end()) {
+        matches = it->second.label == func.name && it->second.inputs == func.inputs && it->second.outputs == func.outputs;
+      }
+
+      if (!matches) {
+        if (it != existing_functions.end())
+          DeleteVarSchema(session_id, it->second.schema_id);
+
+        CreateFunctionSchema(session_id, func);
+        changed = true;
+      }
+    }
+
+    for (const auto &[id, entry] : existing_functions) {
+      if (wanted_ids.find(id) == wanted_ids.end()) {
+        DeleteVarSchema(session_id, entry.schema_id);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      nlohmann::json sj;
+      sj["session_id"] = session_id;
+      CallIe("save_nodegraph", sj.dump());
+    }
+
+    return changed;
+  }
+
   static bool DrawCirclePlusButton(const ImVec2 &center, float radius) {
     ImVec2 min(center.x - radius, center.y - radius);
 
@@ -478,6 +852,7 @@ namespace ModuleUI {
     float full_width = ImGui::GetContentRegionAvail().x;
 
     if (ImGui::Selectable("##row", is_selected, ImGuiSelectableFlags_AllowItemOverlap, ImVec2(full_width, row_height))) {
+      session->selected_function = "";
       session->selected_var = var.id;
     }
     ImGui::SetCursorScreenPos(row_start);
@@ -507,7 +882,32 @@ namespace ModuleUI {
     ImGui::PopID();
   }
 
-  static void ShowVariablesPanel(const std::shared_ptr<TestCPP::DrawerSession> &session) {
+  static std::string GenerateUniqueId(const char *prefix) {
+    static std::atomic<uint64_t> s_counter{ 0 };
+
+    uint64_t counter = s_counter.fetch_add(1, std::memory_order_relaxed);
+    uint64_t ns =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+
+    std::ostringstream oss;
+    oss << prefix << ns << "_" << counter;
+    return oss.str();
+  }
+
+  static std::string GenerateUniqueVariableId() {
+    return GenerateUniqueId("v_");
+  }
+
+  static std::string GenerateUniqueFunctionId() {
+    return GenerateUniqueId("f_");
+  }
+
+  void DrawerWindow::open_function_graph(const std::string &function_id) {
+    std::string path = fs::path(storage_path_).parent_path().string() + "/" + function_id;
+    std::string id = TestCPP::open_cpp_sketch_function(path, parent_name_);
+  }
+
+  void DrawerWindow::ShowVariablesPanel(const std::shared_ptr<TestCPP::DrawerSession> &session) {
     if (!session)
       return;
 
@@ -515,9 +915,64 @@ namespace ModuleUI {
     static bool functions_open = true;
 
     ImGui::PushID("FunctionsPanel");
-    bool add_foo_clicked = VariablesCategoryHeader("Functions", &functions_open);
-    if (add_foo_clicked) {
+    bool add_func_clicked = VariablesCategoryHeader("Functions", &functions_open);
+
+    CherryStyle::AddMarginY(8.0f);
+
+    if (add_func_clicked) {
+      TestCPP::Function new_func;
+      new_func.id = GenerateUniqueFunctionId();
+      new_func.name = "NewFunction_" + std::to_string(session->functions.size());
+
+      session->functions.push_back(new_func);
+      session->selected_var = "";
+      session->selected_function = new_func.id;
+
+      fs::path path(storage_path_);
+      fs::path final_path = path.parent_path() / new_func.id;
+
+      fs::path node_path = final_path / "graph.nodegraph";
+      fs::path function_storage_path = final_path / "storage.json";
+
+      fs::create_directories(final_path);
+
+      json nodegraph = { { "context_id", "testcpp" }, { "graph", json::object() } };
+
+      {
+        std::ofstream file(node_path);
+        if (file.is_open()) {
+          file << nodegraph.dump(4);
+        }
+      }
+
+      json storage = { { "id", new_func.id }, { "name", new_func.name } };
+
+      {
+        std::ofstream file(function_storage_path);
+        if (file.is_open()) {
+          file << storage.dump(4);
+        }
+      }
     }
+
+    if (functions_open) {
+      if (session->functions.empty()) {
+        ImGui::TextDisabled("(no function)");
+      } else {
+        for (auto &func : session->functions) {
+          bool selected = (session->selected_function == func.id);
+          if (ImGui::Selectable(func.name.c_str(), selected)) {
+            session->selected_var = "";
+            session->selected_function = func.id;
+          }
+
+          if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+            open_function_graph(func.id);
+          }
+        }
+      }
+    }
+
     ImGui::PopID();
 
     if (variables_open) {
@@ -535,12 +990,13 @@ namespace ModuleUI {
       new_var.default_value = DefaultValueForType(new_var.type);
 
       session->vars.push_back(new_var);
+      session->selected_function = "";
       session->selected_var = new_var.id;
     }
 
     if (variables_open) {
       if (session->vars.empty()) {
-        ImGui::TextDisabled("(aucune variable)");
+        ImGui::TextDisabled("(no variable)");
       } else {
         for (auto &var : session->vars) {
           VariableRow(var, session, session->pin_format_cache);
@@ -615,11 +1071,13 @@ namespace ModuleUI {
 
     if (drawer_session_ && !vars_loaded_from_file_) {
       drawer_session_->vars = LoadVariablesFromFile(storage_path_);
+      drawer_session_->functions = LoadFunctionsFromFile(storage_path_);
       vars_loaded_from_file_ = true;
     }
 
     if (gs_id_loaded && vars_loaded_from_file_ && !initial_sync_done_ && drawer_session_) {
       SyncVariablesToGraph(gs_id_, drawer_session_, drawer_session_->pin_format_cache);
+      SyncFunctionsToGraph(gs_id_, drawer_session_);
       initial_sync_done_ = true;
     }
 
@@ -627,6 +1085,7 @@ namespace ModuleUI {
       TestCPP::set_session_need_refresh(id_, false);
       if (drawer_session_) {
         drawer_session_->vars = LoadVariablesFromFile(storage_path_);
+        drawer_session_->functions = LoadFunctionsFromFile(storage_path_);
 
         if (!drawer_session_->selected_var.empty()) {
           bool still_exists =
@@ -638,6 +1097,7 @@ namespace ModuleUI {
         }
 
         SyncVariablesToGraph(gs_id_, drawer_session_, drawer_session_->pin_format_cache);
+        SyncFunctionsToGraph(gs_id_, drawer_session_);
       }
     }
 
@@ -645,7 +1105,9 @@ namespace ModuleUI {
       TestCPP::set_session_need_save(id_, false);
       if (drawer_session_) {
         SaveVariablesToFile(storage_path_, drawer_session_->vars);
+        SaveFunctionsToFile(storage_path_, drawer_session_->functions);
         SyncVariablesToGraph(gs_id_, drawer_session_, drawer_session_->pin_format_cache);
+        SyncFunctionsToGraph(gs_id_, drawer_session_);
       }
     }
 

@@ -36,6 +36,26 @@ bool TestCPP::is_cpp_sketch(const std::string &path) {
 }
 
 static std::vector<std::shared_ptr<ModuleUI::TestCppWrapperAppWindow>> s_instances;
+
+std::string TestCPP::open_cpp_sketch_function(const std::string &path, const std::string &parent) {
+  nlohmann::json j;
+  j["path"] = path;
+  j["disable_native_saving_system"] = true;
+  j["graph_title"] = "C++ Function";
+  j["parent_appwindow"] = parent;
+  j["name"] = parent + "functiontest";
+  j["logo_path"] = TestCPP::get_path("resources/icons/icon_magnifying_glass.png");
+
+  auto ret = ReturnValues();
+  auto args = ArgumentValues(j.dump());
+  vxe::call_input_event("infinitehq.nodeedit", "open_graph", args, ret);
+
+  std::string id = ret.get_json()["session_id"];
+  std::cout << parent << std::endl;
+  std::cout << id << std::endl;
+  return id;
+}
+
 void TestCPP::open_cpp_sketch(const std::string &path) {
   std::string id;
   fs::path full_path(path);
@@ -46,16 +66,19 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
   TestCPP::set_session_link(std::to_string(session_id), "none");
   TestCPP::set_session_variables(std::to_string(session_id), std::make_shared<DrawerSession>());
 
-  auto inst = ModuleUI::TestCppWrapperAppWindow::create(full_path.filename(), std::to_string(i_session), storage_path);
+  static int graphname_i = 0;
+  std::string graphname = full_path.filename().string() + std::to_string(++graphname_i);
+
+  auto inst = ModuleUI::TestCppWrapperAppWindow::create(graphname, std::to_string(i_session), storage_path);
   Cherry::AddAppWindow(inst->get_app_window());
   s_instances.push_back(inst);
 
   {
-    auto i = ModuleUI::DetailsWindow::create(full_path.filename(), std::to_string(i_session), storage_path);
+    auto i = ModuleUI::DetailsWindow::create(graphname, std::to_string(i_session), storage_path);
     Cherry::AddAppWindow(i->get_app_window());
   }
   {
-    auto i = ModuleUI::DrawerWindow::create(full_path.filename(), std::to_string(i_session), storage_path);
+    auto i = ModuleUI::DrawerWindow::create(graphname, std::to_string(i_session), storage_path);
     Cherry::AddAppWindow(i->get_app_window());
   }
 
@@ -64,7 +87,8 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
     j["path"] = graph_path;
     j["disable_native_saving_system"] = true;
     j["graph_title"] = "C++ Simple Program";
-    j["parent_appwindow"] = full_path.filename();
+    j["name"] = graphname + " nodegraph";
+    j["parent_appwindow"] = graphname;
     j["logo_path"] = TestCPP::get_path("resources/icons/icon_magnifying_glass.png");
 
     auto ret = ReturnValues();

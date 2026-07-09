@@ -55,5 +55,6 @@ namespace TestCPP {
   }
 
   std::vector<Variable> load_variables_from_file(const std::string &storage_path);
+
 }  // namespace TestCPP
 #endif  // TESTCPP_HELPERS

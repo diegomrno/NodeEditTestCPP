@@ -66,6 +66,8 @@ namespace ModuleUI {
     void render();
     bool i = false;
     void setup_render_callback();
+    void open_function_graph(const std::string &function_id);
+    void ShowVariablesPanel(const std::shared_ptr<TestCPP::DrawerSession> &session);
 
    private:
     std::shared_ptr<VxContext> ctx;
