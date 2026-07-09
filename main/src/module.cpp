@@ -60,11 +60,6 @@ void TestCPP::open_cpp_sketch(const std::string &path) {
   }
 
   {
-    auto i = ModuleUI::ComponentsWindow::create(full_path.filename(), std::to_string(i_session), storage_path);
-    Cherry::AddAppWindow(i->get_app_window());
-  }
-
-  {
     nlohmann::json j;
     j["path"] = graph_path;
     j["disable_native_saving_system"] = true;

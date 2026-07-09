@@ -18,6 +18,13 @@ namespace TestCPP {
     std::string default_value;
   };
 
+  struct Function {
+    std::string id;
+    std::string name;
+    std::vector<std::pair<std::string, std::string>> inputs;   // types:name
+    std::vector<std::pair<std::string, std::string>> outputs;  // types:name
+  };
+
   struct PinFormatInfo {
     std::string name;
     std::string color;
@@ -25,7 +32,9 @@ namespace TestCPP {
 
   struct DrawerSession {
     std::vector<Variable> vars;
+    std::vector<Function> functions;
     std::string selected_var;
+    std::string selected_function;
     std::unordered_map<std::string, PinFormatInfo> pin_format_cache;
   };
 

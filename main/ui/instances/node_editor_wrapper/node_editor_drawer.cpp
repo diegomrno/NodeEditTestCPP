@@ -401,53 +401,60 @@ namespace ModuleUI {
     ImGuiWindow *window = ImGui::GetCurrentWindow();
     if (window->SkipItems)
       return false;
-
     ImGuiStyle &style = ImGui::GetStyle();
     ImGuiID id = window->GetID(label);
-
     const float full_width = ImGui::GetContentRegionAvail().x;
     const float line_height = ImGui::GetFrameHeight() * 1.3f;
     const float button_radius = line_height * 0.24f;
-
+    const float additional_padding = 24.0f;
     ImVec2 pos = window->DC.CursorPos;
-    ImRect header_bb(pos, ImVec2(pos.x + full_width, pos.y + line_height));
-
+    pos.x += additional_padding;
+    ImRect header_bb(pos, ImVec2(pos.x + full_width - additional_padding, pos.y + line_height));
     bool add_clicked = false;
-
     ImGui::PushID(label);
     ImGui::ItemSize(ImVec2(full_width, line_height));
     if (!ImGui::ItemAdd(header_bb, id)) {
       ImGui::PopID();
       return false;
     }
-
     bool hovered, held;
-
     ImRect click_bb = header_bb;
     click_bb.Max.x -= (button_radius * 2.0f + style.ItemSpacing.x * 2.0f);
     bool pressed = ImGui::ButtonBehavior(click_bb, id, &hovered, &held);
     if (pressed)
       *p_open = !(*p_open);
 
-    ImU32 bg_col = ImGui::GetColorU32(ImVec4(0.08f, 0.09f, 0.10f, 1.0f));
+    ImU32 bg_col = ImGui::GetColorU32(ImVec4(0.17f, 0.17f, 0.17f, 1.0f));
     ImGui::GetWindowDrawList()->AddRectFilled(header_bb.Min, header_bb.Max, bg_col, style.FrameRounding);
+
     if (hovered)
       ImGui::GetWindowDrawList()->AddRectFilled(
-          header_bb.Min, header_bb.Max, ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.04f)), style.FrameRounding);
+          header_bb.Min, header_bb.Max, ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.05f)), style.FrameRounding);
 
+    ImGui::GetWindowDrawList()->AddLine(
+        ImVec2(header_bb.Min.x, header_bb.Max.y),
+        ImVec2(header_bb.Max.x, header_bb.Max.y),
+        ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.06f)));
+
+    ImU32 arrow_col = ImGui::GetColorU32(ImVec4(0.75f, 0.75f, 0.78f, 1.0f));
     ImVec2 arrow_pos =
         ImVec2(header_bb.Min.x + style.FramePadding.x, header_bb.Min.y + (line_height - ImGui::GetTextLineHeight()) * 0.5f);
-    ImGui::RenderArrow(
-        ImGui::GetWindowDrawList(), arrow_pos, ImGui::GetColorU32(ImGuiCol_Text), *p_open ? ImGuiDir_Down : ImGuiDir_Right);
+    ImGui::RenderArrow(ImGui::GetWindowDrawList(), arrow_pos, arrow_col, *p_open ? ImGuiDir_Down : ImGuiDir_Right);
 
     std::string upper_label = label;
     std::transform(upper_label.begin(), upper_label.end(), upper_label.begin(), ::toupper);
+
+    ImU32 text_col = ImGui::GetColorU32(ImVec4(0.85f, 0.85f, 0.87f, 1.0f));
     ImVec2 text_pos =
         ImVec2(arrow_pos.x + line_height * 0.7f, header_bb.Min.y + (line_height - ImGui::GetTextLineHeight()) * 0.5f);
-    ImGui::GetWindowDrawList()->AddText(text_pos, ImGui::GetColorU32(ImGuiCol_Text), upper_label.c_str());
+    ImGui::GetWindowDrawList()->AddText(text_pos, text_col, upper_label.c_str());
 
     ImVec2 circle_center =
         ImVec2(header_bb.Max.x - button_radius - style.ItemSpacing.x, header_bb.Min.y + line_height * 0.5f);
+
+    ImGui::GetWindowDrawList()->AddCircleFilled(
+        circle_center, button_radius * 1.6f, ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.04f)), 16);
+
     if (DrawCirclePlusButton(circle_center, button_radius))
       add_clicked = true;
 
@@ -505,11 +512,21 @@ namespace ModuleUI {
       return;
 
     static bool variables_open = true;
+    static bool functions_open = true;
+
+    ImGui::PushID("FunctionsPanel");
+    bool add_foo_clicked = VariablesCategoryHeader("Functions", &functions_open);
+    if (add_foo_clicked) {
+    }
+    ImGui::PopID();
+
+    if (variables_open) {
+    }
 
     ImGui::PushID("VariablesPanel");
-
     bool add_clicked = VariablesCategoryHeader("Variables", &variables_open);
 
+    CherryStyle::AddMarginY(8.0f);
     if (add_clicked) {
       TestCPP::Variable new_var;
       new_var.id = GenerateUniqueVariableId();

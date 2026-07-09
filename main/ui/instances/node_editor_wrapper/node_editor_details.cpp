@@ -148,7 +148,7 @@ namespace ModuleUI {
     }
 
     if (drawer_session_->selected_var.empty()) {
-      ImGui::TextDisabled("(select a variable)");
+      ImGui::TextDisabled("(select a variable or a function)");
       return;
     }
 
@@ -166,41 +166,28 @@ namespace ModuleUI {
     std::string name = var.name;
     std::string def_val = var.default_value;
 
+    static std::vector<std::string> types;
+    static bool i = false;
+    if (!i) {
+      for (const auto &type : available_types_) {
+        types.push_back(type);
+      }
+      i = true;
+    }
+    static bool te = false;
+
     CherryKit::TableSimple(
         "Details",
-        { CherryKit::KeyValString("Name", &name),
-          CherryKit::KeyValCustom(
-              "Type",
-              [this, &var]() {
-                const TestCPP::PinFormatInfo &current_pf =
-                    GetOrFetchPinFormat(drawer_session_->pin_format_cache, kContextId, var.type);
+        { CherryKit::KeyValParent(
+              "General",
+              { CherryKit::KeyValString("Name", &name),
+                CherryKit::KeyValComboString(CherryID("TYPEID"), "Type", &types),
+                CherryKit::KeyValString("Default value", &def_val) }),
+          CherryKit::KeyValParent("Todo", { CherryKit::KeyValBool("Read only", &te) }) });
 
-                if (ImGui::BeginCombo("Type", current_pf.name.c_str())) {
-                  for (const auto &type : available_types_) {
-                    const TestCPP::PinFormatInfo &pf =
-                        GetOrFetchPinFormat(drawer_session_->pin_format_cache, kContextId, type);
-                    bool is_selected = (type == var.type);
-
-                    ImGui::PushStyleColor(ImGuiCol_Text, ParseHexColor(pf.color));
-                    bool clicked = ImGui::Selectable(pf.name.c_str(), is_selected);
-                    ImGui::PopStyleColor();
-
-                    if (clicked) {
-                      var.type = type;
-                    }
-                    if (is_selected) {
-                      ImGui::SetItemDefaultFocus();
-                    }
-                  }
-                  ImGui::EndCombo();
-                }
-              }),
-          CherryKit::KeyValString("Default value", &def_val) });
-
+    var.type = CherryApp.GetComponent(CherryID("TYPEID")).GetData("selected_string");
     var.name = name;
     var.default_value = def_val;
-
-    CherryKit::TitleOne(var.name);
 
     ImGui::Spacing();
     if (CherryKit::ButtonText("Delete variable").GetDataAs<bool>("isClicked")) {
