@@ -25,7 +25,8 @@ namespace ModuleUI {
       CherryNextComponent.SetProperty("size_x", "18.0f");
       CherryNextComponent.SetProperty("padding_y", "5.0f");
       CherryNextComponent.SetProperty("padding_x", "5.0f");
-      if (CherryKit::ButtonImage(TestCPP::get_path("/resources/icons/icon_save.png")).GetDataAs<bool>("isClicked")) {
+      if (CherryKit::ButtonTextImage("Save All", TestCPP::get_path("/resources/icons/icon_save.png"))
+              .GetDataAs<bool>("isClicked")) {
         nlohmann::json j;
         j["session_id"] = graph_session_id_;
         auto args = ArgumentValues(j.dump());
@@ -38,7 +39,8 @@ namespace ModuleUI {
       CherryNextComponent.SetProperty("size_x", "18.0f");
       CherryNextComponent.SetProperty("padding_y", "5.0f");
       CherryNextComponent.SetProperty("padding_x", "5.0f");
-      if (CherryKit::ButtonImage(TestCPP::get_path("/resources/icons/icon_refresh.png")).GetDataAs<bool>("isClicked")) {
+      if (CherryKit::ButtonTextImage("Refresh", TestCPP::get_path("/resources/icons/icon_refresh.png"))
+              .GetDataAs<bool>("isClicked")) {
         nlohmann::json j;
         j["session_id"] = graph_session_id_;
         auto args = ArgumentValues(j.dump());
@@ -53,7 +55,7 @@ namespace ModuleUI {
 
       CherryNextComponent.SetProperty("padding_y", "6.0f");
       CherryNextComponent.SetProperty("padding_x", "10.0f");
-      if (CherryKit::ButtonImageText("Compile", TestCPP::get_path("/resources/icons/icon_compile.png"))
+      if (CherryKit::ButtonImageText("Compile", TestCPP::get_path("/resources/icons/compile.png"))
               .GetDataAs<bool>("isClicked")) {
         std::string generated_path;
         TestCPP::transpile_graph(graph_session_id_, storage_path_, generated_path);
@@ -61,8 +63,7 @@ namespace ModuleUI {
 
       CherryNextComponent.SetProperty("padding_y", "6.0f");
       CherryNextComponent.SetProperty("padding_x", "10.0f");
-      if (CherryKit::ButtonImageText("Run", TestCPP::get_path("/resources/icons/icon_refresh.png"))
-              .GetDataAs<bool>("isClicked")) {
+      if (CherryKit::ButtonImageText("Run", TestCPP::get_path("/resources/icons/start.png")).GetDataAs<bool>("isClicked")) {
         std::string generated_path;
         if (TestCPP::transpile_graph(graph_session_id_, storage_path_, generated_path)) {
           TestCPP::compile_and_run(generated_path);
