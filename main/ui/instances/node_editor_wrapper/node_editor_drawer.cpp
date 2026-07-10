@@ -378,6 +378,7 @@ namespace ModuleUI {
       functions[schema_id] = std::move(entry);
     }
   }
+
   static void CreateStartFunctionSchema(
       const std::string &session_id,
       const TestCPP::Function &foo,
@@ -391,7 +392,7 @@ namespace ModuleUI {
     sj["id"] = function_id;
     sj["type"] = "blueprint";
     sj["second_label"] = "Entry point of function";
-    sj["second_label_color"] = "#ad64d1";
+    sj["second_label_color"] = "#8a88f2";
     sj["label"] = foo.name;
     sj["label_color"] = "#DEDEDE";
     sj["header_color"] = "#7b03fc";
@@ -400,13 +401,12 @@ namespace ModuleUI {
 
     sj["input_pins"] = nlohmann::json::array();
     sj["output_pins"] = nlohmann::json::array();
+    sj["output_pins"].push_back({ { "id", "output" }, { "name", "" }, { "type", "flow" } });
 
     for (const auto &pin : foo.inputs) {
       sj["output_pins"].push_back(
           { { "id", pin.name }, { "name", pin.name }, { "type", pin.type }, { "default_value", pin.default_value } });
     }
-
-    sj["output_pins"].push_back({ { "id", "output" }, { "name", "" }, { "type", "flow" } });
 
     sj["spawnable"] = true;
     sj["spawn_possibility"] = {
@@ -432,7 +432,7 @@ namespace ModuleUI {
     sj["id"] = function_id;
     sj["type"] = "blueprint";
     sj["second_label"] = "Output of function";
-    sj["second_label_color"] = "#ad64d1";
+    sj["second_label_color"] = "#8a88f2";
     sj["label"] = foo.name;
     sj["header_logo_path"] = foo_logo_path;
     sj["header_color"] = "#7b03fc";
@@ -440,13 +440,13 @@ namespace ModuleUI {
     sj["status"] = "active";
 
     sj["input_pins"] = nlohmann::json::array();
+    sj["input_pins"].push_back({ { "id", "input" }, { "name", "" }, { "type", "flow" } });
 
     for (const auto &pin : foo.outputs) {
       sj["input_pins"].push_back(
           { { "id", pin.name }, { "name", pin.name }, { "type", pin.type }, { "default_value", pin.default_value } });
     }
 
-    sj["input_pins"].push_back({ { "id", "input" }, { "name", "" }, { "type", "flow" } });
     sj["output_pins"] = nlohmann::json::array();
 
     sj["spawnable"] = true;
@@ -459,6 +459,8 @@ namespace ModuleUI {
   }
 
   static void CreateFunctionSchema(const std::string &session_id, const TestCPP::Function &func) {
+    std::string foo_logo_path = TestCPP::get_path("resources/base/foo_custom.png");
+
     nlohmann::json sj;
     sj["session_id"] = session_id;
     sj["context_name"] = kContextId;
@@ -466,8 +468,11 @@ namespace ModuleUI {
     sj["type"] = "blueprint";
     sj["label"] = func.name;
     sj["status"] = "active";
-    sj["header_color"] = "#3a4bab";
+    sj["header_color"] = "#3a6fab";
     sj["label_color"] = "#DEDEDE";
+    sj["second_label"] = "Custom function";
+    sj["second_label_color"] = "#8a88f2";
+    sj["header_logo_path"] = foo_logo_path;
 
     sj["input_pins"] = nlohmann::json::array();
     sj["output_pins"] = nlohmann::json::array();
