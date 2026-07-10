@@ -84,6 +84,41 @@ namespace ModuleUI {
 
     return types;
   }
+  static void DrawDefaultValueEditor(const std::string &type, std::string &default_value) {
+    ImGui::SetNextItemWidth(110.0f);
+
+    if (type == "bool") {
+      bool v = (default_value == "true" || default_value == "1");
+      if (ImGui::Checkbox("##pin_default_bool", &v))
+        default_value = v ? "true" : "false";
+
+    } else if (type == "int") {
+      int v = 0;
+      try {
+        v = default_value.empty() ? 0 : std::stoi(default_value);
+      } catch (...) {
+        v = 0;
+      }
+      if (ImGui::InputInt("##pin_default_int", &v))
+        default_value = std::to_string(v);
+
+    } else if (type == "float") {
+      float v = 0.0f;
+      try {
+        v = default_value.empty() ? 0.0f : std::stof(default_value);
+      } catch (...) {
+        v = 0.0f;
+      }
+      if (ImGui::InputFloat("##pin_default_float", &v, 0.0f, 0.0f, "%.3f"))
+        default_value = std::to_string(v);
+
+    } else {
+      char buf[128];
+      snprintf(buf, sizeof(buf), "%s", default_value.c_str());
+      if (ImGui::InputText("##pin_default_str", buf, sizeof(buf)))
+        default_value = buf;
+    }
+  }
 
   static int it = 1;
   DetailsWindow::DetailsWindow(const std::string &parent_name, const std::string &id, const std::string &st) {
@@ -181,12 +216,12 @@ namespace ModuleUI {
                     return;
 
                   TestCPP::Function &foo = *it;
-
                   ImGui::PushID(("fn_in_" + std::to_string(index)).c_str());
 
+                  // Row 1: name, type, delete
                   char nameBuf[128];
                   snprintf(nameBuf, sizeof(nameBuf), "%s", foo.inputs[index].name.c_str());
-                  ImGui::SetNextItemWidth(140.0f);
+                  ImGui::SetNextItemWidth(150.0f);
                   if (ImGui::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
                     foo.inputs[index].name = nameBuf;
 
@@ -217,19 +252,16 @@ namespace ModuleUI {
                   }
 
                   ImGui::SameLine();
-
-                  char defBuf[128];
-                  snprintf(defBuf, sizeof(defBuf), "%s", foo.inputs[index].default_value.c_str());
-                  ImGui::SetNextItemWidth(90.0f);
-                  if (ImGui::InputTextWithHint("##pin_default", "default", defBuf, sizeof(defBuf)))
-                    foo.inputs[index].default_value = defBuf;
-
-                  ImGui::SameLine();
                   if (ImGui::SmallButton("X")) {
                     foo.inputs.erase(foo.inputs.begin() + index);
                     ImGui::PopID();
                     return;
                   }
+
+                  // Row 2: default value, type-aware editor
+                  ImGui::TextDisabled("Default");
+                  ImGui::SameLine();
+                  DrawDefaultValueEditor(foo.inputs[index].type, foo.inputs[index].default_value);
 
                   ImGui::PopID();
                 }));
@@ -261,9 +293,10 @@ namespace ModuleUI {
                   TestCPP::Function &foo = *it;
                   ImGui::PushID(("fn_out_" + std::to_string(index)).c_str());
 
+                  // Row 1: name, type, delete
                   char nameBuf[128];
                   snprintf(nameBuf, sizeof(nameBuf), "%s", foo.outputs[index].name.c_str());
-                  ImGui::SetNextItemWidth(140.0f);
+                  ImGui::SetNextItemWidth(150.0f);
                   if (ImGui::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
                     foo.outputs[index].name = nameBuf;
 
@@ -293,19 +326,16 @@ namespace ModuleUI {
                   }
 
                   ImGui::SameLine();
-
-                  char defBuf[128];
-                  snprintf(defBuf, sizeof(defBuf), "%s", foo.outputs[index].default_value.c_str());
-                  ImGui::SetNextItemWidth(90.0f);
-                  if (ImGui::InputTextWithHint("##pin_default", "default", defBuf, sizeof(defBuf)))
-                    foo.outputs[index].default_value = defBuf;
-
-                  ImGui::SameLine();
                   if (ImGui::SmallButton("X")) {
                     foo.outputs.erase(foo.outputs.begin() + index);
                     ImGui::PopID();
                     return;
                   }
+
+                  // Row 2: default value, type-aware editor
+                  ImGui::TextDisabled("Default");
+                  ImGui::SameLine();
+                  DrawDefaultValueEditor(foo.outputs[index].type, foo.outputs[index].default_value);
 
                   ImGui::PopID();
                 }));

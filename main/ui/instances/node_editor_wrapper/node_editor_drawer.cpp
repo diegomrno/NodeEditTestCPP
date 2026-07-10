@@ -924,8 +924,11 @@ namespace ModuleUI {
 
     ImGui::PopID();
 
-    if (variables_open) {
-    }
+    CherryStyle::AddMarginY(10.0f);
+    CherryGUI::PushStyleColor(ImGuiCol_Separator, Cherry::HexToRGBA("#333333AA"));
+    CherryGUI::Separator();
+    CherryGUI::PopStyleColor();
+    CherryStyle::AddMarginY(10.0f);
 
     ImGui::PushID("VariablesPanel");
     bool add_clicked = VariablesCategoryHeader("Variables", &variables_open);
