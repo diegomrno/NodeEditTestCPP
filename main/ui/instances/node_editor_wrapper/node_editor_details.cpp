@@ -171,7 +171,7 @@ namespace ModuleUI {
       for (int index = 0; index < (int)f.inputs.size(); ++index) {
         inputRows.push_back(
             CherryKit::KeyValCustom(
-                f.inputs[index].second.empty() ? "(unnamed)" : f.inputs[index].second, [&, functionId, index]() {
+                f.inputs[index].name.empty() ? "(unnamed)" : f.inputs[index].name, [&, functionId, index]() {
                   auto it = std::find_if(
                       drawer_session_->functions.begin(), drawer_session_->functions.end(), [&](const TestCPP::Function &f) {
                         return f.id == functionId;
@@ -182,47 +182,52 @@ namespace ModuleUI {
 
                   TestCPP::Function &foo = *it;
 
-                  ImGui::PushID(index);
+                  ImGui::PushID(("fn_in_" + std::to_string(index)).c_str());
 
                   char nameBuf[128];
-                  snprintf(nameBuf, sizeof(nameBuf), "%s", foo.inputs[index].second.c_str());
-
-                  ImGui::SetNextItemWidth(180.0f);
+                  snprintf(nameBuf, sizeof(nameBuf), "%s", foo.inputs[index].name.c_str());
+                  ImGui::SetNextItemWidth(140.0f);
                   if (ImGui::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
-                    foo.inputs[index].second = nameBuf;
+                    foo.inputs[index].name = nameBuf;
 
                   ImGui::SameLine();
 
                   int selectedType = 0;
                   for (int t = 0; t < (int)available_types_.size(); ++t) {
-                    if (available_types_[t] == foo.inputs[index].first) {
+                    if (available_types_[t] == foo.inputs[index].type) {
                       selectedType = t;
                       break;
                     }
                   }
 
                   const char *preview = available_types_.empty() ? "" : available_types_[selectedType].c_str();
-
-                  ImGui::SetNextItemWidth(130.0f);
-
+                  ImGui::SetNextItemWidth(110.0f);
                   if (ImGui::BeginCombo("##pin_type", preview)) {
                     for (int t = 0; t < (int)available_types_.size(); ++t) {
                       bool selected = (selectedType == t);
-
-                      if (ImGui::Selectable(available_types_[t].c_str(), selected))
-                        foo.inputs[index].first = available_types_[t];
-
+                      if (ImGui::Selectable(available_types_[t].c_str(), selected)) {
+                        foo.inputs[index].type = available_types_[t];
+                        // switching type invalidates a stale default written for a different type
+                        foo.inputs[index].default_value = TestCPP::DefaultLiteralValueForType(available_types_[t]);
+                      }
                       if (selected)
                         ImGui::SetItemDefaultFocus();
                     }
-
                     ImGui::EndCombo();
                   }
 
                   ImGui::SameLine();
 
+                  char defBuf[128];
+                  snprintf(defBuf, sizeof(defBuf), "%s", foo.inputs[index].default_value.c_str());
+                  ImGui::SetNextItemWidth(90.0f);
+                  if (ImGui::InputTextWithHint("##pin_default", "default", defBuf, sizeof(defBuf)))
+                    foo.inputs[index].default_value = defBuf;
+
+                  ImGui::SameLine();
                   if (ImGui::SmallButton("X")) {
                     foo.inputs.erase(foo.inputs.begin() + index);
+                    ImGui::PopID();
                     return;
                   }
 
@@ -232,81 +237,87 @@ namespace ModuleUI {
 
       inputRows.push_back(CherryKit::KeyValCustom("", [&]() {
         if (CherryKit::ButtonText("+ Add Input").GetDataAs<bool>("isClicked")) {
-          std::string defaultType;
-          if (!available_types_.empty())
-            defaultType = available_types_[0];
-
-          f.inputs.emplace_back(defaultType, "");
+          std::string defaultType = available_types_.empty() ? "" : available_types_[0];
+          TestCPP::FunctionPin pin;
+          pin.type = defaultType;
+          pin.default_value = TestCPP::DefaultLiteralValueForType(defaultType);
+          f.inputs.push_back(std::move(pin));
         }
       }));
 
       std::vector<Cherry::Component> outputRows;
       for (int index = 0; index < (int)f.outputs.size(); ++index) {
         outputRows.push_back(
-            CherryKit::KeyValCustom(f.outputs[index].second.empty() ? "(unnamed)" : f.outputs[index].second, [&, index]() {
-              auto it = std::find_if(
-                  drawer_session_->functions.begin(), drawer_session_->functions.end(), [&](const TestCPP::Function &f) {
-                    return f.id == functionId;
-                  });
+            CherryKit::KeyValCustom(
+                f.outputs[index].name.empty() ? "(unnamed)" : f.outputs[index].name, [&, functionId, index]() {
+                  auto it = std::find_if(
+                      drawer_session_->functions.begin(), drawer_session_->functions.end(), [&](const TestCPP::Function &f) {
+                        return f.id == functionId;
+                      });
 
-              if (it == drawer_session_->functions.end())
-                return;
+                  if (it == drawer_session_->functions.end())
+                    return;
 
-              TestCPP::Function &foo = *it;
-              ImGui::PushID(index);
+                  TestCPP::Function &foo = *it;
+                  ImGui::PushID(("fn_out_" + std::to_string(index)).c_str());
 
-              char nameBuf[128];
-              snprintf(nameBuf, sizeof(nameBuf), "%s", foo.outputs[index].second.c_str());
+                  char nameBuf[128];
+                  snprintf(nameBuf, sizeof(nameBuf), "%s", foo.outputs[index].name.c_str());
+                  ImGui::SetNextItemWidth(140.0f);
+                  if (ImGui::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
+                    foo.outputs[index].name = nameBuf;
 
-              ImGui::SetNextItemWidth(180.0f);
-              if (ImGui::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
-                foo.outputs[index].second = nameBuf;
+                  ImGui::SameLine();
 
-              ImGui::SameLine();
+                  int selectedType = 0;
+                  for (int t = 0; t < (int)available_types_.size(); ++t) {
+                    if (available_types_[t] == foo.outputs[index].type) {
+                      selectedType = t;
+                      break;
+                    }
+                  }
 
-              int selectedType = 0;
-              for (int t = 0; t < (int)available_types_.size(); ++t) {
-                if (available_types_[t] == foo.outputs[index].first) {
-                  selectedType = t;
-                  break;
-                }
-              }
+                  const char *preview = available_types_.empty() ? "" : available_types_[selectedType].c_str();
+                  ImGui::SetNextItemWidth(110.0f);
+                  if (ImGui::BeginCombo("##pin_type", preview)) {
+                    for (int t = 0; t < (int)available_types_.size(); ++t) {
+                      bool selected = (selectedType == t);
+                      if (ImGui::Selectable(available_types_[t].c_str(), selected)) {
+                        foo.outputs[index].type = available_types_[t];
+                        foo.outputs[index].default_value = TestCPP::DefaultLiteralValueForType(available_types_[t]);
+                      }
+                      if (selected)
+                        ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                  }
 
-              const char *preview = available_types_.empty() ? "" : available_types_[selectedType].c_str();
+                  ImGui::SameLine();
 
-              ImGui::SetNextItemWidth(130.0f);
+                  char defBuf[128];
+                  snprintf(defBuf, sizeof(defBuf), "%s", foo.outputs[index].default_value.c_str());
+                  ImGui::SetNextItemWidth(90.0f);
+                  if (ImGui::InputTextWithHint("##pin_default", "default", defBuf, sizeof(defBuf)))
+                    foo.outputs[index].default_value = defBuf;
 
-              if (ImGui::BeginCombo("##pin_type", preview)) {
-                for (int t = 0; t < (int)available_types_.size(); ++t) {
-                  bool selected = (selectedType == t);
+                  ImGui::SameLine();
+                  if (ImGui::SmallButton("X")) {
+                    foo.outputs.erase(foo.outputs.begin() + index);
+                    ImGui::PopID();
+                    return;
+                  }
 
-                  if (ImGui::Selectable(available_types_[t].c_str(), selected))
-                    foo.outputs[index].first = available_types_[t];
-
-                  if (selected)
-                    ImGui::SetItemDefaultFocus();
-                }
-
-                ImGui::EndCombo();
-              }
-
-              ImGui::SameLine();
-
-              if (ImGui::SmallButton("X")) {
-                foo.outputs.erase(foo.outputs.begin() + index);
-              }
-
-              ImGui::PopID();
-            }));
+                  ImGui::PopID();
+                }));
       }
 
       outputRows.push_back(CherryKit::KeyValCustom("", [&]() {
         if (CherryKit::ButtonText("+ Add Output").GetDataAs<bool>("isClicked")) {
-          std::string defaultType;
-          if (!available_types_.empty())
-            defaultType = available_types_[0];
-
-          f.outputs.emplace_back(defaultType, "");
+          std::string defaultType = available_types_.empty() ? "" : available_types_[0];
+          TestCPP::FunctionPin pin;
+          pin.type = defaultType;
+          pin.default_value = TestCPP::DefaultLiteralValueForType(defaultType);
+          f.outputs.push_back(std::move(pin));
         }
       }));
 

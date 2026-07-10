@@ -166,15 +166,51 @@ namespace TestCPP {
       return out;
     }
 
-    std::string LiteralFromData(const nlohmann::json &datas, const std::string &pin_id, const std::string &pin_type) {
-      if (pin_type == "bool")
-        return datas.value(pin_id, false) ? "true" : "false";
-      if (pin_type == "int")
-        return std::to_string(datas.value(pin_id, 0));
-      if (pin_type == "float")
-        return std::to_string(datas.value(pin_id, 0.0f)) + "f";
-      if (pin_type == "string")
-        return "\"" + EscapeCppString(datas.value(pin_id, std::string())) + "\"";
+    std::string LiteralFromData(
+        const nlohmann::json &datas,
+        const std::string &pin_id,
+        const std::string &pin_type,
+        const std::string &fallback_default = "") {
+      bool has_value = datas.contains(pin_id) && !datas[pin_id].is_null();
+
+      if (pin_type == "bool") {
+        if (has_value && datas[pin_id].is_boolean())
+          return datas[pin_id].get<bool>() ? "true" : "false";
+        if (!fallback_default.empty())
+          return (fallback_default == "true" || fallback_default == "1") ? "true" : "false";
+        return "false";
+      }
+
+      if (pin_type == "int") {
+        if (has_value && datas[pin_id].is_number_integer())
+          return std::to_string(datas[pin_id].get<int>());
+        if (!fallback_default.empty()) {
+          try {
+            return std::to_string(std::stoi(fallback_default));
+          } catch (...) {
+          }
+        }
+        return "0";
+      }
+
+      if (pin_type == "float") {
+        if (has_value && datas[pin_id].is_number())
+          return std::to_string(datas[pin_id].get<float>()) + "f";
+        if (!fallback_default.empty()) {
+          try {
+            return std::to_string(std::stof(fallback_default)) + "f";
+          } catch (...) {
+          }
+        }
+        return "0.0f";
+      }
+
+      if (pin_type == "string") {
+        if (has_value && datas[pin_id].is_string())
+          return "\"" + EscapeCppString(datas[pin_id].get<std::string>()) + "\"";
+        return "\"" + EscapeCppString(fallback_default) + "\"";
+      }
+
       return "{}";
     }
 
@@ -202,7 +238,8 @@ namespace TestCPP {
         const std::string &node_id,
         const std::string &pin_id,
         const std::string &pin_type,
-        const nlohmann::json &node_datas) {
+        const nlohmann::json &node_datas,
+        const std::string &fallback_default = "") {
       auto producers = GetPreviousNodes(ctx, node_id, pin_id);
       if (producers.size() > 1)
         ctx.had_error = true;
@@ -210,9 +247,8 @@ namespace TestCPP {
         std::string source_pin = GetSourcePin(ctx, node_id, pin_id);
         return TranspileExpression(ctx, producers.front(), source_pin, pin_type);
       }
-      return LiteralFromData(node_datas, pin_id, pin_type);
+      return LiteralFromData(node_datas, pin_id, pin_type, fallback_default);
     }
-
     std::string TranspileExpression(
         TranspileCtx &ctx,
         const std::string &node_id,
@@ -440,13 +476,13 @@ namespace TestCPP {
         if (fn.decl.outputs.empty()) {
           out += Indent(depth) + "return;\n";
         } else if (fn.decl.outputs.size() == 1) {
-          const auto &[out_type, out_name] = fn.decl.outputs[0];
-          std::string expr = ResolveInput(ctx, node_id, out_name, out_type, datas);
+          const auto &pin = fn.decl.outputs[0];
+          std::string expr = ResolveInput(ctx, node_id, pin.name, pin.type, datas, pin.default_value);
           out += Indent(depth) + "return " + expr + ";\n";
         } else {
           std::vector<std::string> field_inits;
-          for (const auto &[out_type, out_name] : fn.decl.outputs)
-            field_inits.push_back(ResolveInput(ctx, node_id, out_name, out_type, datas));
+          for (const auto &pin : fn.decl.outputs)
+            field_inits.push_back(ResolveInput(ctx, node_id, pin.name, pin.type, datas, pin.default_value));
           out += Indent(depth) + "return " + fn.cpp_name + "_Result{ " + Join(field_inits, ", ") + " };\n";
         }
 
@@ -455,28 +491,27 @@ namespace TestCPP {
         auto datas = GetNodeData(ctx, node_id);
 
         std::vector<std::string> arg_exprs;
-        for (const auto &[in_type, in_name] : fn.decl.inputs)
-          arg_exprs.push_back(ResolveInput(ctx, node_id, in_name, in_type, datas));
+        for (const auto &pin : fn.decl.inputs)
+          arg_exprs.push_back(ResolveInput(ctx, node_id, pin.name, pin.type, datas, pin.default_value));
 
         std::string call_expr = fn.cpp_name + "(" + Join(arg_exprs, ", ") + ")";
 
         if (fn.decl.outputs.empty()) {
           out += Indent(depth) + call_expr + ";\n";
         } else if (fn.decl.outputs.size() == 1) {
-          const auto &[out_type, out_name] = fn.decl.outputs[0];
+          const auto &pin = fn.decl.outputs[0];
           std::string tmp = "call_" + SanitizeIdentifier(node_id);
-          out += Indent(depth) + CppTypeForPinType(out_type) + " " + tmp + " = " + call_expr + ";\n";
-          ctx.call_result_vars[node_id][out_name] = tmp;
+          out += Indent(depth) + CppTypeForPinType(pin.type) + " " + tmp + " = " + call_expr + ";\n";
+          ctx.call_result_vars[node_id][pin.name] = tmp;
         } else {
           std::string tmp = "call_" + SanitizeIdentifier(node_id);
           out += Indent(depth) + fn.cpp_name + "_Result " + tmp + " = " + call_expr + ";\n";
-          for (const auto &[out_type, out_name] : fn.decl.outputs)
-            ctx.call_result_vars[node_id][out_name] = tmp + "." + SanitizeIdentifier(out_name);
+          for (const auto &pin : fn.decl.outputs)
+            ctx.call_result_vars[node_id][pin.name] = tmp + "." + SanitizeIdentifier(pin.name);
         }
 
         for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
-
       } else {
         ctx.had_error = true;
         out += Indent(depth) + "// TODO: unsupported flow node type '" + type_id + "' (node " + node_id + ")\n";
@@ -514,20 +549,20 @@ namespace TestCPP {
 
       std::string ret_type = "void";
       if (fn.decl.outputs.size() == 1)
-        ret_type = CppTypeForPinType(fn.decl.outputs[0].first);
+        ret_type = CppTypeForPinType(fn.decl.outputs[0].type);
       else if (fn.decl.outputs.size() > 1)
         ret_type = fn.cpp_name + "_Result";
 
       if (fn.decl.outputs.size() > 1) {
         out_structs += "struct " + fn.cpp_name + "_Result {\n";
-        for (const auto &[t, n] : fn.decl.outputs)
-          out_structs += "  " + CppTypeForPinType(t) + " " + SanitizeIdentifier(n) + ";\n";
+        for (const auto &pin : fn.decl.outputs)
+          out_structs += "  " + CppTypeForPinType(pin.type) + " " + SanitizeIdentifier(pin.name) + ";\n";
         out_structs += "};\n\n";
       }
 
       std::vector<std::string> params;
-      for (const auto &[t, n] : fn.decl.inputs)
-        params.push_back(CppTypeForPinType(t) + " " + CppParamName(n));
+      for (const auto &pin : fn.decl.inputs)
+        params.push_back(CppTypeForPinType(pin.type) + " " + CppParamName(pin.name));
 
       out_decls += "// Function: " + fn.decl.name + " (" + fn.decl.id + ")\n";
       out_decls += ret_type + " " + fn.cpp_name + "(" + Join(params, ", ") + ") {\n";

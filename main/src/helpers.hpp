@@ -18,11 +18,21 @@ namespace TestCPP {
     std::string default_value;
   };
 
+  struct FunctionPin {
+    std::string name;
+    std::string type;
+    std::string default_value;
+  };
+
+  inline bool operator==(const FunctionPin &a, const FunctionPin &b) {
+    return a.name == b.name && a.type == b.type && a.default_value == b.default_value;
+  }
+
   struct Function {
     std::string id;
     std::string name;
-    std::vector<std::pair<std::string, std::string>> inputs;   // types:name
-    std::vector<std::pair<std::string, std::string>> outputs;  // types:name
+    std::vector<FunctionPin> inputs;
+    std::vector<FunctionPin> outputs;
   };
 
   struct PinFormatInfo {
@@ -37,6 +47,16 @@ namespace TestCPP {
     std::string selected_function;
     std::unordered_map<std::string, PinFormatInfo> pin_format_cache;
   };
+
+  inline std::string DefaultLiteralValueForType(const std::string &type) {
+    if (type == "bool")
+      return "false";
+    if (type == "int")
+      return "0";
+    if (type == "float")
+      return "0.0";
+    return "";
+  }
 
   inline void to_json(nlohmann::json &j, const Variable &v) {
     j = nlohmann::json{
@@ -53,36 +73,35 @@ namespace TestCPP {
     v.type = j.value("type", std::string("bool"));
     v.default_value = j.value("default_value", std::string());
   }
+
+  inline void to_json(nlohmann::json &j, const FunctionPin &p) {
+    j = nlohmann::json{
+      { "name", p.name },
+      { "type", p.type },
+      { "default_value", p.default_value },
+    };
+  }
+
+  inline void from_json(const nlohmann::json &j, FunctionPin &p) {
+    p.name = j.value("name", std::string());
+    p.type = j.value("type", std::string("bool"));
+    p.default_value = j.value("default_value", std::string());
+  }
+
   inline void to_json(nlohmann::json &j, const Function &f) {
-    nlohmann::json in = nlohmann::json::array();
-    for (const auto &[t, n] : f.inputs)
-      in.push_back({ { "type", t }, { "name", n } });
-
-    nlohmann::json out = nlohmann::json::array();
-    for (const auto &[t, n] : f.outputs)
-      out.push_back({ { "type", t }, { "name", n } });
-
     j = nlohmann::json{
       { "id", f.id },
       { "name", f.name },
-      { "inputs", in },
-      { "outputs", out },
+      { "inputs", f.inputs },
+      { "outputs", f.outputs },
     };
   }
 
   inline void from_json(const nlohmann::json &j, Function &f) {
     f.id = j.value("id", std::string());
     f.name = j.value("name", std::string());
-
-    f.inputs.clear();
-    if (j.contains("inputs") && j["inputs"].is_array())
-      for (const auto &pj : j["inputs"])
-        f.inputs.emplace_back(pj.value("type", std::string()), pj.value("name", std::string()));
-
-    f.outputs.clear();
-    if (j.contains("outputs") && j["outputs"].is_array())
-      for (const auto &pj : j["outputs"])
-        f.outputs.emplace_back(pj.value("type", std::string()), pj.value("name", std::string()));
+    f.inputs = j.value("inputs", std::vector<FunctionPin>());
+    f.outputs = j.value("outputs", std::vector<FunctionPin>());
   }
 
   std::vector<Function> load_functions_from_file(const std::string &storage_path);

@@ -151,7 +151,6 @@ namespace ModuleUI {
 
   static std::vector<TestCPP::Function> LoadFunctionsFromFile(const std::string &storage_path) {
     std::vector<TestCPP::Function> result;
-
     if (storage_path.empty())
       return result;
 
@@ -181,29 +180,12 @@ namespace ModuleUI {
       nlohmann::json j;
       in >> j;
 
-      if (j.contains("functions") && j["functions"].is_array()) {
+      if (j.contains("functions") && j["functions"].is_array())
         for (const auto &fj : j["functions"]) {
-          TestCPP::Function func;
-
-          func.id = fj.value("id", "");
-          func.name = fj.value("name", "");
-
-          if (fj.contains("inputs") && fj["inputs"].is_array()) {
-            for (const auto &pin : fj["inputs"]) {
-              func.inputs.emplace_back(pin.value("type", ""), pin.value("name", ""));
-            }
-          }
-
-          if (fj.contains("outputs") && fj["outputs"].is_array()) {
-            for (const auto &pin : fj["outputs"]) {
-              func.outputs.emplace_back(pin.value("type", ""), pin.value("name", ""));
-            }
-          }
-
+          TestCPP::Function func = fj.get<TestCPP::Function>();
           if (!func.id.empty())
             result.push_back(std::move(func));
         }
-      }
     } catch (const std::exception &e) {
       std::cerr << "[TestCPP] Failed to load functions from '" << storage_path << "': " << e.what() << std::endl;
       result.clear();
@@ -282,26 +264,8 @@ namespace ModuleUI {
 
       if (!j.is_object())
         j = nlohmann::json::object();
-      j["functions"] = nlohmann::json::array();
 
-      for (const auto &f : functions) {
-        nlohmann::json jf;
-
-        jf["id"] = f.id;
-        jf["name"] = f.name;
-
-        jf["inputs"] = nlohmann::json::array();
-        for (const auto &[type, name] : f.inputs) {
-          jf["inputs"].push_back({ { "type", type }, { "name", name } });
-        }
-
-        jf["outputs"] = nlohmann::json::array();
-        for (const auto &[type, name] : f.outputs) {
-          jf["outputs"].push_back({ { "type", type }, { "name", name } });
-        }
-
-        j["functions"].push_back(std::move(jf));
-      }
+      j["functions"] = functions;  // ADL to_json(FunctionPin/Function)
 
       std::ofstream out(p);
       if (!out.is_open()) {
@@ -327,8 +291,8 @@ namespace ModuleUI {
     struct ExistingFunctionEntry {
       std::string schema_id;
       std::string label;
-      std::vector<std::pair<std::string, std::string>> inputs;
-      std::vector<std::pair<std::string, std::string>> outputs;
+      std::vector<TestCPP::FunctionPin> inputs;
+      std::vector<TestCPP::FunctionPin> outputs;
     };
   }  // namespace
 
@@ -391,8 +355,11 @@ namespace ModuleUI {
         for (const auto &pin : schema_json["input_pins"]) {
           if (pin.value("type", "") == "flow")
             continue;
-
-          entry.inputs.emplace_back(pin.value("type", ""), pin.value("name", ""));
+          TestCPP::FunctionPin fp;
+          fp.name = pin.value("name", "");
+          fp.type = pin.value("type", "");
+          fp.default_value = pin.value("default_value", "");
+          entry.inputs.push_back(std::move(fp));
         }
       }
 
@@ -400,22 +367,22 @@ namespace ModuleUI {
         for (const auto &pin : schema_json["output_pins"]) {
           if (pin.value("type", "") == "flow")
             continue;
-
-          entry.outputs.emplace_back(pin.value("type", ""), pin.value("name", ""));
+          TestCPP::FunctionPin fp;
+          fp.name = pin.value("name", "");
+          fp.type = pin.value("type", "");
+          fp.default_value = pin.value("default_value", "");
+          entry.outputs.push_back(std::move(fp));
         }
       }
 
       functions[schema_id] = std::move(entry);
     }
   }
-
   static void CreateStartFunctionSchema(
       const std::string &session_id,
       const TestCPP::Function &foo,
       std::unordered_map<std::string, TestCPP::PinFormatInfo> &pin_format_cache) {
     const std::string function_id = std::string(kVarInputFoo) + foo.id;
-
-    const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(pin_format_cache, kContextId, "flow");
     std::string foo_logo_path = TestCPP::get_path("resources/base/foo_input.png");
 
     nlohmann::json sj;
@@ -432,24 +399,14 @@ namespace ModuleUI {
     sj["status"] = "active";
 
     sj["input_pins"] = nlohmann::json::array();
-
     sj["output_pins"] = nlohmann::json::array();
 
-    for (const auto &[type, name] : foo.inputs) {
+    for (const auto &pin : foo.inputs) {
       sj["output_pins"].push_back(
-          {
-              { "id", name },
-              { "name", name },
-              { "type", type },
-          });
+          { { "id", pin.name }, { "name", pin.name }, { "type", pin.type }, { "default_value", pin.default_value } });
     }
 
-    sj["output_pins"].push_back(
-        {
-            { "id", "output" },
-            { "name", "" },
-            { "type", "flow" },
-        });
+    sj["output_pins"].push_back({ { "id", "output" }, { "name", "" }, { "type", "flow" } });
 
     sj["spawnable"] = true;
     sj["spawn_possibility"] = {
@@ -467,8 +424,6 @@ namespace ModuleUI {
       const TestCPP::Function &foo,
       std::unordered_map<std::string, TestCPP::PinFormatInfo> &pin_format_cache) {
     const std::string function_id = std::string(kVarOutputFoo) + foo.id;
-
-    const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(pin_format_cache, kContextId, "flow");
     std::string foo_logo_path = TestCPP::get_path("resources/base/foo_output.png");
 
     nlohmann::json sj;
@@ -486,23 +441,13 @@ namespace ModuleUI {
 
     sj["input_pins"] = nlohmann::json::array();
 
-    for (const auto &[type, name] : foo.outputs) {
+    for (const auto &pin : foo.outputs) {
       sj["input_pins"].push_back(
-          {
-              { "id", name },
-              { "name", name },
-              { "type", type },
-          });
+          { { "id", pin.name }, { "name", pin.name }, { "type", pin.type }, { "default_value", pin.default_value } });
     }
 
+    sj["input_pins"].push_back({ { "id", "input" }, { "name", "" }, { "type", "flow" } });
     sj["output_pins"] = nlohmann::json::array();
-
-    sj["input_pins"].push_back(
-        {
-            { "id", "input" },
-            { "name", "" },
-            { "type", "flow" },
-        });
 
     sj["spawnable"] = true;
     sj["spawn_possibility"] = {
@@ -513,6 +458,42 @@ namespace ModuleUI {
     CallIe("setup_schema_to_graph_ext", sj.dump());
   }
 
+  static void CreateFunctionSchema(const std::string &session_id, const TestCPP::Function &func) {
+    nlohmann::json sj;
+    sj["session_id"] = session_id;
+    sj["context_name"] = kContextId;
+    sj["id"] = func.id;
+    sj["type"] = "blueprint";
+    sj["label"] = func.name;
+    sj["status"] = "active";
+    sj["header_color"] = "#3a4bab";
+    sj["label_color"] = "#DEDEDE";
+
+    sj["input_pins"] = nlohmann::json::array();
+    sj["output_pins"] = nlohmann::json::array();
+
+    sj["input_pins"].push_back({ { "id", "input_flow" }, { "name", "" }, { "type", "flow" } });
+
+    for (const auto &pin : func.inputs) {
+      sj["input_pins"].push_back(
+          { { "id", pin.name }, { "name", pin.name }, { "type", pin.type }, { "default_value", pin.default_value } });
+    }
+
+    sj["output_pins"].push_back({ { "id", "output_flow" }, { "name", "" }, { "type", "flow" } });
+
+    for (const auto &pin : func.outputs) {
+      sj["output_pins"].push_back(
+          { { "id", pin.name }, { "name", pin.name }, { "type", pin.type }, { "default_value", pin.default_value } });
+    }
+
+    sj["spawnable"] = true;
+    sj["spawn_possibility"] = {
+      { "category", "Functions" },  { "proper_description", "" }, { "proper_logo", "resources/icons/edit.png" },
+      { "proper_name", func.name }, { "schema_id", func.id },
+    };
+
+    CallIe("setup_schema_to_graph_ext", sj.dump());
+  }
   static void CreateGetterSchema(
       const std::string &session_id,
       const TestCPP::Variable &var,
@@ -655,51 +636,6 @@ namespace ModuleUI {
     }
 
     return changed;
-  }
-
-  static void CreateFunctionSchema(const std::string &session_id, const TestCPP::Function &func) {
-    nlohmann::json sj;
-    sj["session_id"] = session_id;
-    sj["context_name"] = kContextId;
-    sj["id"] = func.id;
-    sj["type"] = "blueprint";
-    sj["label"] = func.name;
-    sj["status"] = "active";
-
-    sj["header_color"] = "#3a4bab";
-    sj["label_color"] = "#DEDEDE";
-
-    auto MakePinId = [](std::string s) {
-      std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
-        if (c == ' ')
-          return '_';
-        return (char)std::tolower(c);
-      });
-      return s;
-    };
-
-    sj["input_pins"] = nlohmann::json::array();
-    sj["output_pins"] = nlohmann::json::array();
-
-    sj["input_pins"].push_back({ { "id", "input_flow" }, { "name", "" }, { "type", "flow" } });
-
-    for (const auto &[type, name] : func.inputs) {
-      sj["input_pins"].push_back({ { "id", name }, { "name", name }, { "type", type } });
-    }
-
-    sj["output_pins"].push_back({ { "id", "output_flow" }, { "name", "" }, { "type", "flow" } });
-
-    for (const auto &[type, name] : func.outputs) {
-      sj["output_pins"].push_back({ { "id", name }, { "name", name }, { "type", type } });
-    }
-
-    sj["spawnable"] = true;
-    sj["spawn_possibility"] = {
-      { "category", "Functions" },  { "proper_description", "" }, { "proper_logo", "resources/icons/edit.png" },
-      { "proper_name", func.name }, { "schema_id", func.id },
-    };
-
-    CallIe("setup_schema_to_graph_ext", sj.dump());
   }
 
   // TODO : SyncVariablesToFunctionGraph (access to global variables)
