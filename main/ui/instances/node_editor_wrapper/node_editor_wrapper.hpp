@@ -73,6 +73,7 @@ namespace ModuleUI {
     std::shared_ptr<VxContext> ctx;
     std::shared_ptr<TestCPP::DrawerSession> drawer_session_ = nullptr;
     std::shared_ptr<Cherry::AppWindow> app_window_;
+    std::vector<std::string> active_sessions;
     std::string parent_name_;
     std::string id_;
     std::string storage_path_;

@@ -416,20 +416,19 @@ namespace ModuleUI {
     const std::string function_id = std::string(kVarInputFoo) + foo.id;
 
     const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(pin_format_cache, kContextId, "flow");
-    std::string foo_logo_path = TestCPP::get_path("resources/base/foo.png");
+    std::string foo_logo_path = TestCPP::get_path("resources/base/foo_input.png");
 
     nlohmann::json sj;
     sj["session_id"] = session_id;
     sj["context_name"] = kContextId;
     sj["id"] = function_id;
     sj["type"] = "blueprint";
-    sj["second_label"] = "Print message to console";
-    sj["second_label_color"] = "#8a88f2";
+    sj["second_label"] = "Entry point of function";
+    sj["second_label_color"] = "#ad64d1";
     sj["label"] = foo.name;
-    sj["border_color"] = pf.color;
-    sj["label_color"] = "#ABABAB";
+    sj["label_color"] = "#DEDEDE";
+    sj["header_color"] = "#7b03fc";
     sj["header_logo_path"] = foo_logo_path;
-    sj["background_color"] = pf.color + "33";
     sj["status"] = "active";
 
     sj["input_pins"] = nlohmann::json::array();
@@ -470,16 +469,19 @@ namespace ModuleUI {
     const std::string function_id = std::string(kVarOutputFoo) + foo.id;
 
     const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(pin_format_cache, kContextId, "flow");
+    std::string foo_logo_path = TestCPP::get_path("resources/base/foo_output.png");
 
     nlohmann::json sj;
     sj["session_id"] = session_id;
     sj["context_name"] = kContextId;
     sj["id"] = function_id;
-    sj["type"] = "simple";
+    sj["type"] = "blueprint";
+    sj["second_label"] = "Output of function";
+    sj["second_label_color"] = "#ad64d1";
     sj["label"] = foo.name;
-    sj["border_color"] = pf.color;
+    sj["header_logo_path"] = foo_logo_path;
+    sj["header_color"] = "#7b03fc";
     sj["label_color"] = "#DEDEDE";
-    sj["background_color"] = pf.color + "33";
     sj["status"] = "active";
 
     sj["input_pins"] = nlohmann::json::array();
@@ -975,6 +977,8 @@ namespace ModuleUI {
           if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
             std::string id = open_function_graph(func.id);
 
+            active_sessions.push_back(id);
+
             CreateStartFunctionSchema(id, func, session->pin_format_cache);
             CreateEndFunctionSchema(id, func, session->pin_format_cache);
           }
@@ -1096,6 +1100,12 @@ namespace ModuleUI {
         drawer_session_->vars = LoadVariablesFromFile(storage_path_);
         drawer_session_->functions = LoadFunctionsFromFile(storage_path_);
 
+        for (auto &s : active_sessions) {
+          nlohmann::json sj;
+          sj["session_id"] = s;
+          CallIe("refresh_nodegraph", sj.dump());
+        }
+
         if (!drawer_session_->selected_var.empty()) {
           bool still_exists =
               std::any_of(drawer_session_->vars.begin(), drawer_session_->vars.end(), [&](const TestCPP::Variable &v) {
@@ -1115,6 +1125,13 @@ namespace ModuleUI {
       if (drawer_session_) {
         SaveVariablesToFile(storage_path_, drawer_session_->vars);
         SaveFunctionsToFile(storage_path_, drawer_session_->functions);
+
+        for (auto &s : active_sessions) {
+          nlohmann::json sj;
+          sj["session_id"] = s;
+          CallIe("save_nodegraph", sj.dump());
+        }
+
         SyncVariablesToGraph(gs_id_, drawer_session_, drawer_session_->pin_format_cache);
         SyncFunctionsToGraph(gs_id_, drawer_session_);
       }
