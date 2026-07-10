@@ -661,3 +661,34 @@ void TestCPP::create_nodegraph(const std::string &path) {
     return;
   }
 }
+
+std::vector<TestCPP::Function> TestCPP::load_functions_from_file(const std::string &storage_path) {
+  std::vector<TestCPP::Function> result;
+  if (storage_path.empty())
+    return result;
+
+  std::filesystem::path p(storage_path);
+
+  try {
+    if (!std::filesystem::exists(p))
+      return result;
+
+    std::ifstream in(p);
+    if (!in.is_open())
+      return result;
+
+    nlohmann::json j;
+    in >> j;
+
+    if (j.contains("functions") && j["functions"].is_array())
+      for (const auto &fj : j["functions"]) {
+        TestCPP::Function f = fj.get<TestCPP::Function>();
+        if (!f.id.empty())
+          result.push_back(std::move(f));
+      }
+  } catch (const std::exception &) {
+    result.clear();
+  }
+
+  return result;
+}

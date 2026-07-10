@@ -684,13 +684,13 @@ namespace ModuleUI {
     sj["input_pins"].push_back({ { "id", "input_flow" }, { "name", "" }, { "type", "flow" } });
 
     for (const auto &[type, name] : func.inputs) {
-      sj["input_pins"].push_back({ { "id", MakePinId(name) }, { "name", name }, { "type", type } });
+      sj["input_pins"].push_back({ { "id", name }, { "name", name }, { "type", type } });
     }
 
     sj["output_pins"].push_back({ { "id", "output_flow" }, { "name", "" }, { "type", "flow" } });
 
     for (const auto &[type, name] : func.outputs) {
-      sj["output_pins"].push_back({ { "id", MakePinId(name) }, { "name", name }, { "type", type } });
+      sj["output_pins"].push_back({ { "id", name }, { "name", name }, { "type", type } });
     }
 
     sj["spawnable"] = true;

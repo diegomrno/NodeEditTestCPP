@@ -151,7 +151,6 @@ namespace ModuleUI {
       ImGui::TextDisabled("(select a variable or a function)");
       return;
     }
-
     // Function details
     if (!drawer_session_->selected_function.empty()) {
       auto it = std::find_if(
@@ -164,77 +163,190 @@ namespace ModuleUI {
         return;
       }
 
-      TestCPP::Function &foo = *it;
+      TestCPP::Function &f = *it;
+      std::string name = f.name;
 
-      std::string name = foo.name;
+      std::vector<Cherry::Component> inputRows;
+      std::string functionId = f.id;
+      for (int index = 0; index < (int)f.inputs.size(); ++index) {
+        inputRows.push_back(
+            CherryKit::KeyValCustom(
+                f.inputs[index].second.empty() ? "(unnamed)" : f.inputs[index].second, [&, functionId, index]() {
+                  auto it = std::find_if(
+                      drawer_session_->functions.begin(), drawer_session_->functions.end(), [&](const TestCPP::Function &f) {
+                        return f.id == functionId;
+                      });
 
-      CherryKit::TableSimple("Details", { CherryKit::KeyValParent("General", { CherryKit::KeyValString("Name", &name) }) });
-      foo.name = name;
+                  if (it == drawer_session_->functions.end())
+                    return;
 
-      ImGui::Spacing();
+                  TestCPP::Function &foo = *it;
 
-      auto DrawPinEditor = [&](const char *title, std::vector<std::pair<std::string, std::string>> &pins) {
-        if (ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen)) {
-          for (int i = 0; i < (int)pins.size(); i++) {
-            ImGui::PushID((std::string(title) + std::to_string(i)).c_str());
+                  ImGui::PushID(index);
 
-            std::string type = pins[i].first;
-            std::string name = pins[i].second;
+                  char nameBuf[128];
+                  snprintf(nameBuf, sizeof(nameBuf), "%s", foo.inputs[index].second.c_str());
 
-            char type_buf[128];
-            char name_buf[128];
+                  ImGui::SetNextItemWidth(180.0f);
+                  if (ImGui::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
+                    foo.inputs[index].second = nameBuf;
 
-            snprintf(type_buf, sizeof(type_buf), "%s", type.c_str());
-            snprintf(name_buf, sizeof(name_buf), "%s", name.c_str());
+                  ImGui::SameLine();
 
-            ImGui::SetNextItemWidth(120);
-            if (ImGui::InputText("Type", type_buf, sizeof(type_buf))) {
-              pins[i].first = type_buf;
-            }
+                  int selectedType = 0;
+                  for (int t = 0; t < (int)available_types_.size(); ++t) {
+                    if (available_types_[t] == foo.inputs[index].first) {
+                      selectedType = t;
+                      break;
+                    }
+                  }
 
-            ImGui::SameLine();
+                  const char *preview = available_types_.empty() ? "" : available_types_[selectedType].c_str();
 
-            ImGui::SetNextItemWidth(120);
-            if (ImGui::InputText("Name", name_buf, sizeof(name_buf))) {
-              pins[i].second = name_buf;
-            }
+                  ImGui::SetNextItemWidth(130.0f);
 
-            ImGui::SameLine();
+                  if (ImGui::BeginCombo("##pin_type", preview)) {
+                    for (int t = 0; t < (int)available_types_.size(); ++t) {
+                      bool selected = (selectedType == t);
 
-            if (ImGui::Button("X")) {
-              pins.erase(pins.begin() + i);
-              ImGui::PopID();
-              break;
-            }
+                      if (ImGui::Selectable(available_types_[t].c_str(), selected))
+                        foo.inputs[index].first = available_types_[t];
 
-            ImGui::PopID();
-          }
+                      if (selected)
+                        ImGui::SetItemDefaultFocus();
+                    }
 
-          if (ImGui::Button((std::string("+ Add ") + title).c_str())) {
-            pins.push_back({ "", "" });
-          }
-        }
-      };
+                    ImGui::EndCombo();
+                  }
 
-      DrawPinEditor("Inputs", foo.inputs);
-      DrawPinEditor("Outputs", foo.outputs);
+                  ImGui::SameLine();
 
-      ImGui::Spacing();
+                  if (ImGui::SmallButton("X")) {
+                    foo.inputs.erase(foo.inputs.begin() + index);
+                    return;
+                  }
 
-      ImGui::Spacing();
-      if (CherryKit::ButtonText("Delete function").GetDataAs<bool>("isClicked")) {
-        std::string deleted_id = foo.id;
-        drawer_session_->functions.erase(
-            std::remove_if(
-                drawer_session_->functions.begin(),
-                drawer_session_->functions.end(),
-                [&](const TestCPP::Function &v) { return v.id == deleted_id; }),
-            drawer_session_->functions.end());
-
-        if (drawer_session_->selected_function == deleted_id) {
-          drawer_session_->selected_function.clear();
-        }
+                  ImGui::PopID();
+                }));
       }
+
+      inputRows.push_back(CherryKit::KeyValCustom("", [&]() {
+        if (CherryKit::ButtonText("+ Add Input").GetDataAs<bool>("isClicked")) {
+          std::string defaultType;
+          if (!available_types_.empty())
+            defaultType = available_types_[0];
+
+          f.inputs.emplace_back(defaultType, "");
+        }
+      }));
+
+      std::vector<Cherry::Component> outputRows;
+      for (int index = 0; index < (int)f.outputs.size(); ++index) {
+        outputRows.push_back(
+            CherryKit::KeyValCustom(f.outputs[index].second.empty() ? "(unnamed)" : f.outputs[index].second, [&, index]() {
+              auto it = std::find_if(
+                  drawer_session_->functions.begin(), drawer_session_->functions.end(), [&](const TestCPP::Function &f) {
+                    return f.id == functionId;
+                  });
+
+              if (it == drawer_session_->functions.end())
+                return;
+
+              TestCPP::Function &foo = *it;
+              ImGui::PushID(index);
+
+              char nameBuf[128];
+              snprintf(nameBuf, sizeof(nameBuf), "%s", foo.outputs[index].second.c_str());
+
+              ImGui::SetNextItemWidth(180.0f);
+              if (ImGui::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
+                foo.outputs[index].second = nameBuf;
+
+              ImGui::SameLine();
+
+              int selectedType = 0;
+              for (int t = 0; t < (int)available_types_.size(); ++t) {
+                if (available_types_[t] == foo.outputs[index].first) {
+                  selectedType = t;
+                  break;
+                }
+              }
+
+              const char *preview = available_types_.empty() ? "" : available_types_[selectedType].c_str();
+
+              ImGui::SetNextItemWidth(130.0f);
+
+              if (ImGui::BeginCombo("##pin_type", preview)) {
+                for (int t = 0; t < (int)available_types_.size(); ++t) {
+                  bool selected = (selectedType == t);
+
+                  if (ImGui::Selectable(available_types_[t].c_str(), selected))
+                    foo.outputs[index].first = available_types_[t];
+
+                  if (selected)
+                    ImGui::SetItemDefaultFocus();
+                }
+
+                ImGui::EndCombo();
+              }
+
+              ImGui::SameLine();
+
+              if (ImGui::SmallButton("X")) {
+                foo.outputs.erase(foo.outputs.begin() + index);
+              }
+
+              ImGui::PopID();
+            }));
+      }
+
+      outputRows.push_back(CherryKit::KeyValCustom("", [&]() {
+        if (CherryKit::ButtonText("+ Add Output").GetDataAs<bool>("isClicked")) {
+          std::string defaultType;
+          if (!available_types_.empty())
+            defaultType = available_types_[0];
+
+          f.outputs.emplace_back(defaultType, "");
+        }
+      }));
+
+      CherryKit::TableSimple(
+          "Function Details",
+          {
+              CherryKit::KeyValParent(
+                  "General",
+                  {
+                      CherryKit::KeyValString("Name", &name),
+                  }),
+
+              CherryKit::KeyValParent("Inputs", inputRows),
+
+              CherryKit::KeyValParent("Outputs", outputRows),
+
+              CherryKit::KeyValParent(
+                  "Actions",
+                  {
+                      CherryKit::KeyValCustom(
+                          "",
+                          [&]() {
+                            if (CherryKit::ButtonText("Delete Function").GetDataAs<bool>("isClicked")) {
+                              std::string deleted_id = f.id;
+
+                              drawer_session_->functions.erase(
+                                  std::remove_if(
+                                      drawer_session_->functions.begin(),
+                                      drawer_session_->functions.end(),
+                                      [&](const TestCPP::Function &v) { return v.id == deleted_id; }),
+                                  drawer_session_->functions.end());
+
+                              if (drawer_session_->selected_function == deleted_id)
+                                drawer_session_->selected_function.clear();
+                            }
+                          }),
+                  }),
+          });
+
+      f.name = name;
     }
 
     // Variable details

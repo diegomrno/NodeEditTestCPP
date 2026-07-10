@@ -28,47 +28,88 @@ namespace TestCPP {
       return s.rfind(prefix, 0) == 0;
     }
 
+    std::string Join(const std::vector<std::string> &parts, const std::string &sep) {
+      std::string out;
+      for (size_t i = 0; i < parts.size(); ++i) {
+        if (i)
+          out += sep;
+        out += parts[i];
+      }
+      return out;
+    }
+
+    std::string SanitizeIdentifier(const std::string &raw) {
+      std::string out;
+      out.reserve(raw.size());
+      for (char c : raw)
+        out += std::isalnum(static_cast<unsigned char>(c)) ? c : '_';
+      if (out.empty() || std::isdigit(static_cast<unsigned char>(out[0])))
+        out = "_" + out;
+      return out;
+    }
+
+    std::string CppParamName(const std::string &raw_name) {
+      return "p_" + SanitizeIdentifier(raw_name);
+    }
+
+    struct GraphHandle {
+      bool silent = false;
+      std::string ref;
+    };
+
+    nlohmann::json
+    CallGraphEvent(const GraphHandle &h, const char *live_action, const char *silent_action, nlohmann::json j) {
+      if (h.silent) {
+        j["path"] = h.ref;
+        return CallIe(silent_action, j.dump()).get_json();
+      }
+      j["session_id"] = h.ref;
+      return CallIe(live_action, j.dump()).get_json();
+    }
+
+    struct FunctionInfo {
+      TestCPP::Function decl;
+      std::string folder_path;
+      std::string cpp_name;
+    };
+
     struct TranspileCtx {
-      std::string session_id;
-      std::unordered_map<std::string, TestCPP::Variable> vars_by_id;  // var.id : variable
-      std::unordered_map<std::string, std::string> var_cpp_name;      // var.id : cpp identifier
-      std::unordered_set<std::string> visiting;                       // cycle guard for the current flow chain
+      GraphHandle graph;
+
+      std::unordered_map<std::string, TestCPP::Variable> vars_by_id;
+      std::unordered_map<std::string, std::string> var_cpp_name;
+
+      std::unordered_map<std::string, FunctionInfo> functions_by_id;
+
+      std::unordered_set<std::string> visiting;
+      std::unordered_map<std::string, std::unordered_map<std::string, std::string>> call_result_vars;
+      const FunctionInfo *current_function = nullptr;
+      std::string current_function_start_schema;
+      std::string current_function_end_schema;
+
       bool had_error = false;
     };
 
     std::string GetNodeTypeId(TranspileCtx &ctx, const std::string &node_id) {
-      nlohmann::json j;
-      j["session_id"] = ctx.session_id;
-      j["node_id"] = node_id;
-      auto ret = CallIe("get_node_type_id", j.dump());
-      return ret.get_json().value("type_id", "");
+      auto rj = CallGraphEvent(ctx.graph, "get_node_type_id", "get_node_type_id_silently", { { "node_id", node_id } });
+      return rj.value("type_id", "");
     }
 
     nlohmann::json GetNodeData(TranspileCtx &ctx, const std::string &node_id) {
-      nlohmann::json j;
-      j["session_id"] = ctx.session_id;
-      j["node_id"] = node_id;
-      auto ret = CallIe("get_node_data", j.dump());
-      const auto &rj = ret.get_json();
+      auto rj = CallGraphEvent(ctx.graph, "get_node_data", "get_node_data_silently", { { "node_id", node_id } });
       return rj.contains("datas") ? rj["datas"] : nlohmann::json::object();
     }
 
     std::string FindNodeBySchemaId(TranspileCtx &ctx, const std::string &schema_id) {
-      nlohmann::json j;
-      j["session_id"] = ctx.session_id;
-      j["schema_id"] = schema_id;
-      auto ret = CallIe("find_node_by_schema_id", j.dump());
-      return ret.get_json().value("node_id", "");
+      auto rj = CallGraphEvent(
+          ctx.graph, "find_node_by_schema_id", "find_node_by_schema_id_silently", { { "schema_id", schema_id } });
+      return rj.value("node_id", "");
     }
 
     std::vector<std::string> GetNextNodes(TranspileCtx &ctx, const std::string &node_id, const std::string &output_id) {
-      nlohmann::json j;
-      j["session_id"] = ctx.session_id;
-      j["node_id"] = node_id;
-      j["output_id"] = output_id;
-      auto ret = CallIe("get_next_nodes", j.dump());
+      auto rj = CallGraphEvent(
+          ctx.graph, "get_next_nodes", "get_next_nodes_silently", { { "node_id", node_id }, { "output_id", output_id } });
       std::vector<std::string> out;
-      const auto &rj = ret.get_json();
       if (rj.contains("node_ids") && rj["node_ids"].is_array())
         for (const auto &v : rj["node_ids"])
           out.push_back(v.get<std::string>());
@@ -76,17 +117,25 @@ namespace TestCPP {
     }
 
     std::vector<std::string> GetPreviousNodes(TranspileCtx &ctx, const std::string &node_id, const std::string &input_id) {
-      nlohmann::json j;
-      j["session_id"] = ctx.session_id;
-      j["node_id"] = node_id;
-      j["input_id"] = input_id;
-      auto ret = CallIe("get_previous_nodes", j.dump());
+      auto rj = CallGraphEvent(
+          ctx.graph,
+          "get_previous_nodes",
+          "get_previous_nodes_silently",
+          { { "node_id", node_id }, { "input_id", input_id } });
       std::vector<std::string> out;
-      const auto &rj = ret.get_json();
       if (rj.contains("node_ids") && rj["node_ids"].is_array())
         for (const auto &v : rj["node_ids"])
           out.push_back(v.get<std::string>());
       return out;
+    }
+
+    std::string GetSourcePin(TranspileCtx &ctx, const std::string &node_id, const std::string &input_id) {
+      auto rj = CallGraphEvent(
+          ctx.graph,
+          "get_connection_source_pin",
+          "get_connection_source_pin_silently",
+          { { "node_id", node_id }, { "input_id", input_id } });
+      return rj.value("pin_id", "");
     }
 
     std::string CppTypeForPinType(const std::string &pin_type) {
@@ -129,17 +178,6 @@ namespace TestCPP {
       return "{}";
     }
 
-    // turns variables into valid cpp identifiers
-    std::string SanitizeIdentifier(const std::string &raw) {
-      std::string out;
-      out.reserve(raw.size());
-      for (char c : raw)
-        out += std::isalnum(static_cast<unsigned char>(c)) ? c : '_';
-      if (out.empty() || std::isdigit(static_cast<unsigned char>(out[0])))
-        out = "_" + out;
-      return out;
-    }
-
     std::string CppVarName(TranspileCtx &ctx, const std::string &var_id) {
       auto it = ctx.var_cpp_name.find(var_id);
       if (it != ctx.var_cpp_name.end())
@@ -153,8 +191,11 @@ namespace TestCPP {
       return std::string(static_cast<size_t>(depth) * 2, ' ');
     }
 
-    // Graph traversal
-    std::string TranspileExpression(TranspileCtx &ctx, const std::string &node_id, const std::string &expected_type);
+    std::string TranspileExpression(
+        TranspileCtx &ctx,
+        const std::string &node_id,
+        const std::string &source_pin,
+        const std::string &expected_type);
 
     std::string ResolveInput(
         TranspileCtx &ctx,
@@ -165,12 +206,18 @@ namespace TestCPP {
       auto producers = GetPreviousNodes(ctx, node_id, pin_id);
       if (producers.size() > 1)
         ctx.had_error = true;
-      if (!producers.empty())
-        return TranspileExpression(ctx, producers.front(), pin_type);
+      if (!producers.empty()) {
+        std::string source_pin = GetSourcePin(ctx, node_id, pin_id);
+        return TranspileExpression(ctx, producers.front(), source_pin, pin_type);
+      }
       return LiteralFromData(node_datas, pin_id, pin_type);
     }
 
-    std::string TranspileExpression(TranspileCtx &ctx, const std::string &node_id, const std::string &expected_type) {
+    std::string TranspileExpression(
+        TranspileCtx &ctx,
+        const std::string &node_id,
+        const std::string &source_pin,
+        const std::string &expected_type) {
       std::string type_id = GetNodeTypeId(ctx, node_id);
       if (type_id.empty()) {
         ctx.had_error = true;
@@ -185,6 +232,22 @@ namespace TestCPP {
                  LiteralFromData(nlohmann::json::object(), "", expected_type);
         }
         return CppVarName(ctx, var_id);
+      }
+
+      if (ctx.current_function && type_id == ctx.current_function_start_schema) {
+        return CppParamName(source_pin);
+      }
+
+      if (ctx.functions_by_id.count(type_id)) {
+        auto node_it = ctx.call_result_vars.find(node_id);
+        if (node_it != ctx.call_result_vars.end()) {
+          auto pin_it = node_it->second.find(source_pin);
+          if (pin_it != node_it->second.end())
+            return pin_it->second;
+        }
+        ctx.had_error = true;
+        return "/* TODO: function call result not available for node " + node_id + " pin '" + source_pin + "' */ " +
+               LiteralFromData(nlohmann::json::object(), "", expected_type);
       }
 
       if (type_id == "is_int_higher_than_int") {
@@ -310,6 +373,7 @@ namespace TestCPP {
       return "/* TODO: unsupported expression node type '" + type_id + "' */ " +
              LiteralFromData(nlohmann::json::object(), "", expected_type);
     }
+
     void TranspileFlow(TranspileCtx &ctx, const std::string &node_id, int depth, std::string &out) {
       if (node_id.empty())
         return;
@@ -334,10 +398,12 @@ namespace TestCPP {
         out += Indent(depth) + "std::this_thread::sleep_for(std::chrono::seconds(" + seconds + "));\n";
         for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
+
       } else if (type_id == "close") {
         out += Indent(depth) + "TriggerClose();\n";
         for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
+
       } else if (type_id == "branch") {
         auto datas = GetNodeData(ctx, node_id);
         std::string cond = ResolveInput(ctx, node_id, "bool", "bool", datas);
@@ -367,12 +433,115 @@ namespace TestCPP {
         for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
 
+      } else if (ctx.current_function && type_id == ctx.current_function_end_schema) {
+        const FunctionInfo &fn = *ctx.current_function;
+        auto datas = GetNodeData(ctx, node_id);
+
+        if (fn.decl.outputs.empty()) {
+          out += Indent(depth) + "return;\n";
+        } else if (fn.decl.outputs.size() == 1) {
+          const auto &[out_type, out_name] = fn.decl.outputs[0];
+          std::string expr = ResolveInput(ctx, node_id, out_name, out_type, datas);
+          out += Indent(depth) + "return " + expr + ";\n";
+        } else {
+          std::vector<std::string> field_inits;
+          for (const auto &[out_type, out_name] : fn.decl.outputs)
+            field_inits.push_back(ResolveInput(ctx, node_id, out_name, out_type, datas));
+          out += Indent(depth) + "return " + fn.cpp_name + "_Result{ " + Join(field_inits, ", ") + " };\n";
+        }
+
+      } else if (ctx.functions_by_id.count(type_id)) {
+        const FunctionInfo &fn = ctx.functions_by_id.at(type_id);
+        auto datas = GetNodeData(ctx, node_id);
+
+        std::vector<std::string> arg_exprs;
+        for (const auto &[in_type, in_name] : fn.decl.inputs)
+          arg_exprs.push_back(ResolveInput(ctx, node_id, in_name, in_type, datas));
+
+        std::string call_expr = fn.cpp_name + "(" + Join(arg_exprs, ", ") + ")";
+
+        if (fn.decl.outputs.empty()) {
+          out += Indent(depth) + call_expr + ";\n";
+        } else if (fn.decl.outputs.size() == 1) {
+          const auto &[out_type, out_name] = fn.decl.outputs[0];
+          std::string tmp = "call_" + SanitizeIdentifier(node_id);
+          out += Indent(depth) + CppTypeForPinType(out_type) + " " + tmp + " = " + call_expr + ";\n";
+          ctx.call_result_vars[node_id][out_name] = tmp;
+        } else {
+          std::string tmp = "call_" + SanitizeIdentifier(node_id);
+          out += Indent(depth) + fn.cpp_name + "_Result " + tmp + " = " + call_expr + ";\n";
+          for (const auto &[out_type, out_name] : fn.decl.outputs)
+            ctx.call_result_vars[node_id][out_name] = tmp + "." + SanitizeIdentifier(out_name);
+        }
+
+        for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
+          TranspileFlow(ctx, next, depth, out);
+
       } else {
         ctx.had_error = true;
         out += Indent(depth) + "// TODO: unsupported flow node type '" + type_id + "' (node " + node_id + ")\n";
       }
 
       ctx.visiting.erase(node_id);
+    }
+
+    void TranspileFunctionBody(TranspileCtx &ctx, FunctionInfo &fn, std::string &out_decls, std::string &out_structs) {
+      GraphHandle prev_graph = ctx.graph;
+      auto prev_visiting = std::move(ctx.visiting);
+      auto prev_call_vars = std::move(ctx.call_result_vars);
+      const FunctionInfo *prev_current_fn = ctx.current_function;
+      std::string prev_start = ctx.current_function_start_schema;
+      std::string prev_end = ctx.current_function_end_schema;
+
+      ctx.graph = GraphHandle{ true, fn.folder_path };
+      ctx.visiting.clear();
+      ctx.call_result_vars.clear();
+      ctx.current_function = &fn;
+      ctx.current_function_start_schema = "input_foo_" + fn.decl.id;
+      ctx.current_function_end_schema = "output_foo_" + fn.decl.id;
+
+      std::string start_node = FindNodeBySchemaId(ctx, ctx.current_function_start_schema);
+
+      std::string body;
+      if (start_node.empty()) {
+        ctx.had_error = true;
+        body += Indent(1) + "// TODO: could not find the Start node for function '" + fn.decl.name + "' (" + fn.folder_path +
+                ")\n";
+      } else {
+        for (const auto &next : GetNextNodes(ctx, start_node, "output"))
+          TranspileFlow(ctx, next, 1, body);
+      }
+
+      std::string ret_type = "void";
+      if (fn.decl.outputs.size() == 1)
+        ret_type = CppTypeForPinType(fn.decl.outputs[0].first);
+      else if (fn.decl.outputs.size() > 1)
+        ret_type = fn.cpp_name + "_Result";
+
+      if (fn.decl.outputs.size() > 1) {
+        out_structs += "struct " + fn.cpp_name + "_Result {\n";
+        for (const auto &[t, n] : fn.decl.outputs)
+          out_structs += "  " + CppTypeForPinType(t) + " " + SanitizeIdentifier(n) + ";\n";
+        out_structs += "};\n\n";
+      }
+
+      std::vector<std::string> params;
+      for (const auto &[t, n] : fn.decl.inputs)
+        params.push_back(CppTypeForPinType(t) + " " + CppParamName(n));
+
+      out_decls += "// Function: " + fn.decl.name + " (" + fn.decl.id + ")\n";
+      out_decls += ret_type + " " + fn.cpp_name + "(" + Join(params, ", ") + ") {\n";
+      out_decls += body;
+      if (ret_type != "void")
+        out_decls += Indent(1) + "return {}; // fallback if no explicit return was reached in the graph\n";
+      out_decls += "}\n\n";
+
+      ctx.graph = prev_graph;
+      ctx.visiting = std::move(prev_visiting);
+      ctx.call_result_vars = std::move(prev_call_vars);
+      ctx.current_function = prev_current_fn;
+      ctx.current_function_start_schema = prev_start;
+      ctx.current_function_end_schema = prev_end;
     }
 
   }  // namespace
@@ -384,10 +553,21 @@ namespace TestCPP {
     }
 
     TranspileCtx ctx;
-    ctx.session_id = session_id;
+    ctx.graph = GraphHandle{ false, session_id };
 
     for (auto &v : TestCPP::load_variables_from_file(storage_path))
       ctx.vars_by_id[v.id] = v;
+
+    std::filesystem::path storage_p(storage_path);
+    std::filesystem::path base_dir = storage_p.has_parent_path() ? storage_p.parent_path() : std::filesystem::path(".");
+
+    for (auto &f : TestCPP::load_functions_from_file(storage_path)) {
+      FunctionInfo info;
+      info.decl = f;
+      info.folder_path = (base_dir / f.id).string();
+      info.cpp_name = "fn_" + SanitizeIdentifier(f.id);
+      ctx.functions_by_id[f.id] = std::move(info);
+    }
 
     std::string on_setup_id = FindNodeBySchemaId(ctx, "on_setup");
     std::string on_loop_id = FindNodeBySchemaId(ctx, "on_loop");
@@ -419,6 +599,11 @@ namespace TestCPP {
       var_decls += cpp_type + " " + CppVarName(ctx, var_id) + " = " + default_literal + "; // " + var.name + "\n";
     }
 
+    std::string functions_struct_decls;
+    std::string functions_decls;
+    for (auto &[id, info] : ctx.functions_by_id)
+      TranspileFunctionBody(ctx, info, functions_decls, functions_struct_decls);
+
     std::string setup_body;
     for (const auto &next : GetNextNodes(ctx, on_setup_id, "output_flow"))
       TranspileFlow(ctx, next, 1, setup_body);
@@ -443,6 +628,12 @@ namespace TestCPP {
     file << "// Variables \n";
     file << var_decls << "\n";
 
+    file << "// Function return-value structs\n";
+    file << functions_struct_decls;
+
+    file << "// Functions\n";
+    file << functions_decls;
+
     file << "void OnSetup();\n";
     file << "void OnLoop();\n\n";
 
@@ -461,7 +652,6 @@ namespace TestCPP {
     file << "void OnSetup() {\n" << setup_body << "}\n\n";
     file << "void OnLoop() {\n" << loop_body << "}\n";
 
-    std::filesystem::path storage_p(storage_path);
     std::filesystem::path out_p = storage_p.has_parent_path() ? storage_p.parent_path() / "generated_program.cpp"
                                                               : std::filesystem::path("generated_program.cpp");
 
@@ -490,7 +680,6 @@ namespace TestCPP {
     return true;
   }
 
-  // Reminder, this is only for testing, more capabilities will comming with new official vortex modules
   bool compile_and_run(const std::string &cpp_path) {
     std::filesystem::path p(cpp_path);
     std::filesystem::path exe_path = p.parent_path() / p.stem();
