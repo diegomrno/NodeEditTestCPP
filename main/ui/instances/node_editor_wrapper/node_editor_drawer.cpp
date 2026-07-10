@@ -416,15 +416,19 @@ namespace ModuleUI {
     const std::string function_id = std::string(kVarInputFoo) + foo.id;
 
     const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(pin_format_cache, kContextId, "flow");
+    std::string foo_logo_path = TestCPP::get_path("resources/base/foo.png");
 
     nlohmann::json sj;
     sj["session_id"] = session_id;
     sj["context_name"] = kContextId;
     sj["id"] = function_id;
-    sj["type"] = "simple";
+    sj["type"] = "blueprint";
+    sj["second_label"] = "Print message to console";
+    sj["second_label_color"] = "#8a88f2";
     sj["label"] = foo.name;
     sj["border_color"] = pf.color;
-    sj["label_color"] = "#DEDEDE";
+    sj["label_color"] = "#ABABAB";
+    sj["header_logo_path"] = foo_logo_path;
     sj["background_color"] = pf.color + "33";
     sj["status"] = "active";
 
@@ -450,10 +454,12 @@ namespace ModuleUI {
 
     sj["spawnable"] = true;
     sj["spawn_possibility"] = {
-      { "category", "Functions" }, { "proper_description", "" }, { "proper_logo", "resources/icons/edit.png" },
-      { "proper_name", foo.name }, { "schema_id", function_id },
+      { "category", "Functions" },
+      { "proper_description", "" },
+      { "proper_logo", "resources/icons/edit.png" },
+      { "proper_name", "Start " + foo.name },
+      { "schema_id", function_id },
     };
-
     CallIe("setup_schema_to_graph_ext", sj.dump());
   }
 
@@ -902,9 +908,9 @@ namespace ModuleUI {
     return GenerateUniqueId("f_");
   }
 
-  void DrawerWindow::open_function_graph(const std::string &function_id) {
+  std::string DrawerWindow::open_function_graph(const std::string &function_id) {
     std::string path = fs::path(storage_path_).parent_path().string() + "/" + function_id;
-    std::string id = TestCPP::open_cpp_sketch_function(path, parent_name_);
+    return TestCPP::open_cpp_sketch_function(path, parent_name_);
   }
 
   void DrawerWindow::ShowVariablesPanel(const std::shared_ptr<TestCPP::DrawerSession> &session) {
@@ -967,7 +973,10 @@ namespace ModuleUI {
           }
 
           if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            open_function_graph(func.id);
+            std::string id = open_function_graph(func.id);
+
+            CreateStartFunctionSchema(id, func, session->pin_format_cache);
+            CreateEndFunctionSchema(id, func, session->pin_format_cache);
           }
         }
       }
