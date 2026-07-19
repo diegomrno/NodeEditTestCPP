@@ -26,7 +26,7 @@ std::shared_ptr<TestCPP::Context> TestCPP::get_current_context() {
 }
 
 std::string TestCPP::get_path(const std::string &path) {
-  return get_current_context()->interface->cook_path(path);
+  return get_current_context()->m_interface->cook_path(path);
 }
 
 bool TestCPP::is_cpp_sketch(const std::string &path) {

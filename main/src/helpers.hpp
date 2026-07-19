@@ -1,11 +1,6 @@
 #pragma once
 #include <vxcore/include/vortex.h>
 #include <vxcore/include/vortex_internals.h>
-
-#include <nlohmann/json.hpp>
-#include <string>
-#include <unordered_map>
-#include <vector>
 #include <vxgui/editor/main/editor.hpp>
 #ifndef TESTCPP_HELPERS
 #define TESTCPP_HELPERS

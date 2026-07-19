@@ -583,7 +583,7 @@ namespace TestCPP {
 
   bool transpile_graph(const std::string &session_id, const std::string &storage_path, std::string &out_cpp_path) {
     if (session_id.empty()) {
-      get_current_context()->interface->log_error("[TestCPP] Cannot transpile: no active graph session.");
+      get_current_context()->m_interface->log_error("[TestCPP] Cannot transpile: no active graph session.");
       return false;
     }
 
@@ -608,11 +608,11 @@ namespace TestCPP {
     std::string on_loop_id = FindNodeBySchemaId(ctx, "on_loop");
 
     if (on_setup_id.empty()) {
-      get_current_context()->interface->log_error("[TestCPP] Transpile failed: no 'on_setup' node found in the graph.");
+      get_current_context()->m_interface->log_error("[TestCPP] Transpile failed: no 'on_setup' node found in the graph.");
       return false;
     }
     if (on_loop_id.empty()) {
-      get_current_context()->interface->log_error("[TestCPP] Transpile failed: no 'on_loop' node found in the graph.");
+      get_current_context()->m_interface->log_error("[TestCPP] Transpile failed: no 'on_loop' node found in the graph.");
       return false;
     }
 
@@ -696,19 +696,19 @@ namespace TestCPP {
 
       std::ofstream ofs(out_p);
       if (!ofs.is_open()) {
-        get_current_context()->interface->log_error("[TestCPP] Could not open '" + out_p.string() + "' for writing.");
+        get_current_context()->m_interface->log_error("[TestCPP] Could not open '" + out_p.string() + "' for writing.");
         return false;
       }
       ofs << file.str();
     } catch (const std::exception &e) {
-      get_current_context()->interface->log_error(std::string("[TestCPP] Failed to write generated file: ") + e.what());
+      get_current_context()->m_interface->log_error(std::string("[TestCPP] Failed to write generated file: ") + e.what());
       return false;
     }
 
     out_cpp_path = out_p.string();
 
     if (ctx.had_error) {
-      get_current_context()->interface->log_error(
+      get_current_context()->m_interface->log_error(
           "[TestCPP] Transpile completed with warnings — check the TODO comments in " + out_cpp_path);
     }
 
@@ -728,7 +728,7 @@ namespace TestCPP {
 
     int compile_result = std::system(compile_cmd.c_str());
     if (compile_result != 0) {
-      get_current_context()->interface->log_error("[TestCPP] Compilation failed (see console output above).");
+      get_current_context()->m_interface->log_error("[TestCPP] Compilation failed (see console output above).");
       return false;
     }
 

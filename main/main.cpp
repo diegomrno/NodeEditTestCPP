@@ -9,7 +9,7 @@ class infinitehq_testcpp : public ModuleInterface {
     ctx = TestCPP::create_context();
 
     auto m = ModuleInterface::get_editor_module_by_name(this->name());
-    TestCPP::get_current_context()->interface = m;
+    TestCPP::get_current_context()->m_interface = m;
 
     this->add_content_browser_item_identifier(ItemIdentifierInterface(
         TestCPP::is_cpp_sketch,

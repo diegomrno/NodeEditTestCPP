@@ -702,20 +702,20 @@ namespace ModuleUI {
   }
 
   static bool DrawCirclePlusButton(const ImVec2 &center, float radius) {
-    ImVec2 min(center.x - radius, center.y - radius);
+    ImVec2 bmin(center.x - radius, center.y - radius);
 
-    CherryGUI::SetCursorScreenPos(min);
+    CherryGUI::SetCursorScreenPos(bmin);
     CherryGUI::InvisibleButton("##circle_plus_btn", ImVec2(radius * 2.0f, radius * 2.0f));
     bool hovered = CherryGUI::IsItemHovered();
     bool clicked = CherryGUI::IsItemClicked();
 
     ImU32 col = CherryGUI::GetColorU32(hovered ? ImGuiCol_Text : ImGuiCol_TextDisabled);
     ImDrawList *draw_list = CherryGUI::GetWindowDrawList();
-    draw_list->AddCircle(center, radius, col, 16, 1.4f);
+    CherryGUI::AddCircle(draw_list, center, radius, col, 16, 1.4f);
 
     float cross = radius * 0.55f;
-    draw_list->AddLine(ImVec2(center.x - cross, center.y), ImVec2(center.x + cross, center.y), col, 1.4f);
-    draw_list->AddLine(ImVec2(center.x, center.y - cross), ImVec2(center.x, center.y + cross), col, 1.4f);
+    CherryGUI::AddLine(draw_list, ImVec2(center.x - cross, center.y), ImVec2(center.x + cross, center.y), col, 1.4f);
+    CherryGUI::AddLine(draw_list, ImVec2(center.x, center.y - cross), ImVec2(center.x, center.y + cross), col, 1.4f);
 
     return clicked;
   }
@@ -725,7 +725,7 @@ namespace ModuleUI {
     if (window->SkipItems)
       return false;
     ImGuiStyle &style = CherryGUI::GetStyle();
-    ImGuiID id = window->GetID(label);
+    ImGuiID id = CherryGUI::GetWindowID(window, label);
     const float full_width = CherryGUI::GetContentRegionAvail().x;
     const float line_height = CherryGUI::GetFrameHeight() * 1.3f;
     const float button_radius = line_height * 0.24f;
@@ -748,13 +748,13 @@ namespace ModuleUI {
       *p_open = !(*p_open);
 
     ImU32 bg_col = CherryGUI::GetColorU32(ImVec4(0.17f, 0.17f, 0.17f, 1.0f));
-    CherryGUI::GetWindowDrawList()->AddRectFilled(header_bb.Min, header_bb.Max, bg_col, style.FrameRounding);
+    CherryGUI::AddRectFilled(CherryGUI::GetWindowDrawList(),header_bb.Min, header_bb.Max, bg_col, style.FrameRounding);
 
     if (hovered)
-      CherryGUI::GetWindowDrawList()->AddRectFilled(
+      CherryGUI::AddRectFilled(CherryGUI::GetWindowDrawList(),
           header_bb.Min, header_bb.Max, CherryGUI::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.05f)), style.FrameRounding);
 
-    CherryGUI::GetWindowDrawList()->AddLine(
+    CherryGUI::AddLine(CherryGUI::GetWindowDrawList(),
         ImVec2(header_bb.Min.x, header_bb.Max.y),
         ImVec2(header_bb.Max.x, header_bb.Max.y),
         CherryGUI::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.06f)));
@@ -770,12 +770,12 @@ namespace ModuleUI {
     ImU32 text_col = CherryGUI::GetColorU32(ImVec4(0.85f, 0.85f, 0.87f, 1.0f));
     ImVec2 text_pos =
         ImVec2(arrow_pos.x + line_height * 0.7f, header_bb.Min.y + (line_height - CherryGUI::GetTextLineHeight()) * 0.5f);
-    CherryGUI::GetWindowDrawList()->AddText(text_pos, text_col, upper_label.c_str());
+    CherryGUI::AddText(CherryGUI::GetWindowDrawList(),text_pos, text_col, upper_label.c_str());
 
     ImVec2 circle_center =
         ImVec2(header_bb.Max.x - button_radius - style.ItemSpacing.x, header_bb.Min.y + line_height * 0.5f);
 
-    CherryGUI::GetWindowDrawList()->AddCircleFilled(
+    CherryGUI::AddCircleFilled(CherryGUI::GetWindowDrawList(),
         circle_center, button_radius * 1.6f, CherryGUI::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.04f)), 16);
 
     if (DrawCirclePlusButton(circle_center, button_radius))
@@ -821,7 +821,7 @@ namespace ModuleUI {
     float pill_h = row_height * 0.32f;
     ImVec2 pill_min = ImVec2(pill_pos.x, pill_pos.y + (row_height - pill_h) * 0.5f);
     ImVec2 pill_max = ImVec2(pill_min.x + pill_w, pill_min.y + pill_h);
-    CherryGUI::GetWindowDrawList()->AddRectFilled(pill_min, pill_max, CherryGUI::ColorConvertFloat4ToU32(type_color), pill_h * 0.5f);
+    CherryGUI::AddRectFilled(CherryGUI::GetWindowDrawList(),pill_min, pill_max, CherryGUI::ColorConvertFloat4ToU32(type_color), pill_h * 0.5f);
     CherryGUI::Dummy(ImVec2(pill_w, row_height));
     CherryGUI::SameLine(0.0f, spacing);
 

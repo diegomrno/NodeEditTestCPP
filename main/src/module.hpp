@@ -1,5 +1,6 @@
 #include <vxcore/include/vortex.h>
 #include <vxcore/include/vortex_internals.h>
+#include <vxcore/include/modules/interface.hpp>
 
 #include <atomic>
 #include <format>
@@ -22,10 +23,9 @@
 // Vortex Events APi
 
 static int i_session = 0;
-
 namespace TestCPP {
   struct Context {
-    std::shared_ptr<ModuleInterface> interface;
+    std::shared_ptr<ModuleInterface> m_interface;
     std::unordered_map<std::string, std::string> session_links;  // second = graph id
     std::unordered_map<std::string, bool> session_need_save;
     std::unordered_map<std::string, bool> session_need_refresh;
