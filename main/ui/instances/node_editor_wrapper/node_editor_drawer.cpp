@@ -704,13 +704,13 @@ namespace ModuleUI {
   static bool DrawCirclePlusButton(const ImVec2 &center, float radius) {
     ImVec2 min(center.x - radius, center.y - radius);
 
-    ImGui::SetCursorScreenPos(min);
-    ImGui::InvisibleButton("##circle_plus_btn", ImVec2(radius * 2.0f, radius * 2.0f));
-    bool hovered = ImGui::IsItemHovered();
-    bool clicked = ImGui::IsItemClicked();
+    CherryGUI::SetCursorScreenPos(min);
+    CherryGUI::InvisibleButton("##circle_plus_btn", ImVec2(radius * 2.0f, radius * 2.0f));
+    bool hovered = CherryGUI::IsItemHovered();
+    bool clicked = CherryGUI::IsItemClicked();
 
-    ImU32 col = ImGui::GetColorU32(hovered ? ImGuiCol_Text : ImGuiCol_TextDisabled);
-    ImDrawList *draw_list = ImGui::GetWindowDrawList();
+    ImU32 col = CherryGUI::GetColorU32(hovered ? ImGuiCol_Text : ImGuiCol_TextDisabled);
+    ImDrawList *draw_list = CherryGUI::GetWindowDrawList();
     draw_list->AddCircle(center, radius, col, 16, 1.4f);
 
     float cross = radius * 0.55f;
@@ -721,67 +721,67 @@ namespace ModuleUI {
   }
 
   static bool VariablesCategoryHeader(const char *label, bool *p_open) {
-    ImGuiWindow *window = ImGui::GetCurrentWindow();
+    ImGuiWindow *window = CherryGUI::GetCurrentWindow();
     if (window->SkipItems)
       return false;
-    ImGuiStyle &style = ImGui::GetStyle();
+    ImGuiStyle &style = CherryGUI::GetStyle();
     ImGuiID id = window->GetID(label);
-    const float full_width = ImGui::GetContentRegionAvail().x;
-    const float line_height = ImGui::GetFrameHeight() * 1.3f;
+    const float full_width = CherryGUI::GetContentRegionAvail().x;
+    const float line_height = CherryGUI::GetFrameHeight() * 1.3f;
     const float button_radius = line_height * 0.24f;
     const float additional_padding = 24.0f;
     ImVec2 pos = window->DC.CursorPos;
     pos.x += additional_padding;
     ImRect header_bb(pos, ImVec2(pos.x + full_width - additional_padding, pos.y + line_height));
     bool add_clicked = false;
-    ImGui::PushID(label);
-    ImGui::ItemSize(ImVec2(full_width, line_height));
-    if (!ImGui::ItemAdd(header_bb, id)) {
-      ImGui::PopID();
+    CherryGUI::PushID(label);
+    CherryGUI::ItemSize(ImVec2(full_width, line_height));
+    if (!CherryGUI::ItemAdd(header_bb, id)) {
+      CherryGUI::PopID();
       return false;
     }
     bool hovered, held;
     ImRect click_bb = header_bb;
     click_bb.Max.x -= (button_radius * 2.0f + style.ItemSpacing.x * 2.0f);
-    bool pressed = ImGui::ButtonBehavior(click_bb, id, &hovered, &held);
+    bool pressed = CherryGUI::ButtonBehavior(click_bb, id, &hovered, &held);
     if (pressed)
       *p_open = !(*p_open);
 
-    ImU32 bg_col = ImGui::GetColorU32(ImVec4(0.17f, 0.17f, 0.17f, 1.0f));
-    ImGui::GetWindowDrawList()->AddRectFilled(header_bb.Min, header_bb.Max, bg_col, style.FrameRounding);
+    ImU32 bg_col = CherryGUI::GetColorU32(ImVec4(0.17f, 0.17f, 0.17f, 1.0f));
+    CherryGUI::GetWindowDrawList()->AddRectFilled(header_bb.Min, header_bb.Max, bg_col, style.FrameRounding);
 
     if (hovered)
-      ImGui::GetWindowDrawList()->AddRectFilled(
-          header_bb.Min, header_bb.Max, ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.05f)), style.FrameRounding);
+      CherryGUI::GetWindowDrawList()->AddRectFilled(
+          header_bb.Min, header_bb.Max, CherryGUI::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.05f)), style.FrameRounding);
 
-    ImGui::GetWindowDrawList()->AddLine(
+    CherryGUI::GetWindowDrawList()->AddLine(
         ImVec2(header_bb.Min.x, header_bb.Max.y),
         ImVec2(header_bb.Max.x, header_bb.Max.y),
-        ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.06f)));
+        CherryGUI::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.06f)));
 
-    ImU32 arrow_col = ImGui::GetColorU32(ImVec4(0.75f, 0.75f, 0.78f, 1.0f));
+    ImU32 arrow_col = CherryGUI::GetColorU32(ImVec4(0.75f, 0.75f, 0.78f, 1.0f));
     ImVec2 arrow_pos =
-        ImVec2(header_bb.Min.x + style.FramePadding.x, header_bb.Min.y + (line_height - ImGui::GetTextLineHeight()) * 0.5f);
-    ImGui::RenderArrow(ImGui::GetWindowDrawList(), arrow_pos, arrow_col, *p_open ? ImGuiDir_Down : ImGuiDir_Right);
+        ImVec2(header_bb.Min.x + style.FramePadding.x, header_bb.Min.y + (line_height - CherryGUI::GetTextLineHeight()) * 0.5f);
+    CherryGUI::RenderArrow(CherryGUI::GetWindowDrawList(), arrow_pos, arrow_col, *p_open ? ImGuiDir_Down : ImGuiDir_Right);
 
     std::string upper_label = label;
     std::transform(upper_label.begin(), upper_label.end(), upper_label.begin(), ::toupper);
 
-    ImU32 text_col = ImGui::GetColorU32(ImVec4(0.85f, 0.85f, 0.87f, 1.0f));
+    ImU32 text_col = CherryGUI::GetColorU32(ImVec4(0.85f, 0.85f, 0.87f, 1.0f));
     ImVec2 text_pos =
-        ImVec2(arrow_pos.x + line_height * 0.7f, header_bb.Min.y + (line_height - ImGui::GetTextLineHeight()) * 0.5f);
-    ImGui::GetWindowDrawList()->AddText(text_pos, text_col, upper_label.c_str());
+        ImVec2(arrow_pos.x + line_height * 0.7f, header_bb.Min.y + (line_height - CherryGUI::GetTextLineHeight()) * 0.5f);
+    CherryGUI::GetWindowDrawList()->AddText(text_pos, text_col, upper_label.c_str());
 
     ImVec2 circle_center =
         ImVec2(header_bb.Max.x - button_radius - style.ItemSpacing.x, header_bb.Min.y + line_height * 0.5f);
 
-    ImGui::GetWindowDrawList()->AddCircleFilled(
-        circle_center, button_radius * 1.6f, ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.04f)), 16);
+    CherryGUI::GetWindowDrawList()->AddCircleFilled(
+        circle_center, button_radius * 1.6f, CherryGUI::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 0.04f)), 16);
 
     if (DrawCirclePlusButton(circle_center, button_radius))
       add_clicked = true;
 
-    ImGui::PopID();
+    CherryGUI::PopID();
     return add_clicked;
   }
 
@@ -789,46 +789,46 @@ namespace ModuleUI {
       TestCPP::Variable &var,
       const std::shared_ptr<TestCPP::DrawerSession> &session,
       std::unordered_map<std::string, TestCPP::PinFormatInfo> &pin_format_cache) {
-    ImGui::PushID(var.id.c_str());
+    CherryGUI::PushID(var.id.c_str());
 
     bool is_selected = (session->selected_var == var.id);
     const TestCPP::PinFormatInfo &pf = GetOrFetchPinFormat(pin_format_cache, kContextId, var.type);
     ImVec4 type_color = ParseHexColor(pf.color);
 
-    const float row_height = ImGui::GetFrameHeight();
+    const float row_height = CherryGUI::GetFrameHeight();
 
-    ImVec2 row_start = ImGui::GetCursorScreenPos();
-    float full_width = ImGui::GetContentRegionAvail().x;
+    ImVec2 row_start = CherryGUI::GetCursorScreenPos();
+    float full_width = CherryGUI::GetContentRegionAvail().x;
 
-    if (ImGui::Selectable("##row", is_selected, ImGuiSelectableFlags_AllowItemOverlap, ImVec2(full_width, row_height))) {
+    if (CherryGUI::Selectable("##row", is_selected, ImGuiSelectableFlags_AllowItemOverlap, ImVec2(full_width, row_height))) {
       session->selected_function = "";
       session->selected_var = var.id;
     }
-    ImGui::SetCursorScreenPos(row_start);
+    CherryGUI::SetCursorScreenPos(row_start);
 
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted(var.name.c_str());
+    CherryGUI::AlignTextToFramePadding();
+    CherryGUI::TextUnformatted(var.name.c_str());
 
-    const float type_w = ImGui::CalcTextSize(pf.name.c_str()).x;
+    const float type_w = CherryGUI::CalcTextSize(pf.name.c_str()).x;
     const float pill_w = row_height * 0.55f;
-    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+    const float spacing = CherryGUI::GetStyle().ItemSpacing.x;
 
     float right_block_w = pill_w + spacing + type_w;
     float cursor_x = row_start.x + full_width - right_block_w;
-    ImGui::SetCursorScreenPos(ImVec2(cursor_x, row_start.y));
+    CherryGUI::SetCursorScreenPos(ImVec2(cursor_x, row_start.y));
 
-    ImVec2 pill_pos = ImGui::GetCursorScreenPos();
+    ImVec2 pill_pos = CherryGUI::GetCursorScreenPos();
     float pill_h = row_height * 0.32f;
     ImVec2 pill_min = ImVec2(pill_pos.x, pill_pos.y + (row_height - pill_h) * 0.5f);
     ImVec2 pill_max = ImVec2(pill_min.x + pill_w, pill_min.y + pill_h);
-    ImGui::GetWindowDrawList()->AddRectFilled(pill_min, pill_max, ImGui::ColorConvertFloat4ToU32(type_color), pill_h * 0.5f);
-    ImGui::Dummy(ImVec2(pill_w, row_height));
-    ImGui::SameLine(0.0f, spacing);
+    CherryGUI::GetWindowDrawList()->AddRectFilled(pill_min, pill_max, CherryGUI::ColorConvertFloat4ToU32(type_color), pill_h * 0.5f);
+    CherryGUI::Dummy(ImVec2(pill_w, row_height));
+    CherryGUI::SameLine(0.0f, spacing);
 
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted(pf.name.c_str());
+    CherryGUI::AlignTextToFramePadding();
+    CherryGUI::TextUnformatted(pf.name.c_str());
 
-    ImGui::PopID();
+    CherryGUI::PopID();
   }
 
   static std::string GenerateUniqueId(const char *prefix) {
@@ -863,7 +863,7 @@ namespace ModuleUI {
     static bool variables_open = true;
     static bool functions_open = true;
 
-    ImGui::PushID("FunctionsPanel");
+    CherryGUI::PushID("FunctionsPanel");
     bool add_func_clicked = VariablesCategoryHeader("Functions", &functions_open);
 
     CherryStyle::AddMarginY(8.0f);
@@ -906,16 +906,16 @@ namespace ModuleUI {
 
     if (functions_open) {
       if (session->functions.empty()) {
-        ImGui::TextDisabled("(no function)");
+        CherryGUI::TextDisabled("(no function)");
       } else {
         for (auto &func : session->functions) {
           bool selected = (session->selected_function == func.id);
-          if (ImGui::Selectable(func.name.c_str(), selected)) {
+          if (CherryGUI::Selectable(func.name.c_str(), selected)) {
             session->selected_var = "";
             session->selected_function = func.id;
           }
 
-          if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+          if (CherryGUI::IsItemHovered() && CherryGUI::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
             std::string id = open_function_graph(func.id);
 
             active_sessions.push_back(id);
@@ -927,10 +927,10 @@ namespace ModuleUI {
       }
     }
 
-    ImGui::PopID();
+    CherryGUI::PopID();
     CherryStyle::RemoveMarginX(10.0f);
 
-    ImGui::PushID("VariablesPanel");
+    CherryGUI::PushID("VariablesPanel");
     bool add_clicked = VariablesCategoryHeader("Variables", &variables_open);
 
     CherryStyle::AddMarginY(8.0f);
@@ -948,7 +948,7 @@ namespace ModuleUI {
 
     if (variables_open) {
       if (session->vars.empty()) {
-        ImGui::TextDisabled("(no variable)");
+        CherryGUI::TextDisabled("(no variable)");
       } else {
         for (auto &var : session->vars) {
           VariableRow(var, session, session->pin_format_cache);
@@ -956,7 +956,7 @@ namespace ModuleUI {
       }
     }
 
-    ImGui::PopID();
+    CherryGUI::PopID();
   }
 
   static int it = 1;

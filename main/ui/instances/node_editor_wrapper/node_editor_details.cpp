@@ -85,11 +85,11 @@ namespace ModuleUI {
     return types;
   }
   static void DrawDefaultValueEditor(const std::string &type, std::string &default_value) {
-    ImGui::SetNextItemWidth(110.0f);
+    CherryGUI::SetNextItemWidth(110.0f);
 
     if (type == "bool") {
       bool v = (default_value == "true" || default_value == "1");
-      if (ImGui::Checkbox("##pin_default_bool", &v))
+      if (CherryGUI::Checkbox("##pin_default_bool", &v))
         default_value = v ? "true" : "false";
 
     } else if (type == "int") {
@@ -99,7 +99,7 @@ namespace ModuleUI {
       } catch (...) {
         v = 0;
       }
-      if (ImGui::InputInt("##pin_default_int", &v))
+      if (CherryGUI::InputInt("##pin_default_int", &v))
         default_value = std::to_string(v);
 
     } else if (type == "float") {
@@ -109,13 +109,13 @@ namespace ModuleUI {
       } catch (...) {
         v = 0.0f;
       }
-      if (ImGui::InputFloat("##pin_default_float", &v, 0.0f, 0.0f, "%.3f"))
+      if (CherryGUI::InputFloat("##pin_default_float", &v, 0.0f, 0.0f, "%.3f"))
         default_value = std::to_string(v);
 
     } else {
       char buf[128];
       snprintf(buf, sizeof(buf), "%s", default_value.c_str());
-      if (ImGui::InputText("##pin_default_str", buf, sizeof(buf)))
+      if (CherryGUI::InputText("##pin_default_str", buf, sizeof(buf)))
         default_value = buf;
     }
   }
@@ -178,12 +178,12 @@ namespace ModuleUI {
     }
 
     if (!drawer_session_) {
-      ImGui::TextDisabled("(no session)");
+      CherryGUI::TextDisabled("(no session)");
       return;
     }
 
     if (drawer_session_->selected_var.empty() && drawer_session_->selected_function.empty()) {
-      ImGui::TextDisabled("(select a variable or a function)");
+      CherryGUI::TextDisabled("(select a variable or a function)");
       return;
     }
     // Function details
@@ -194,7 +194,7 @@ namespace ModuleUI {
           });
 
       if (it == drawer_session_->functions.end()) {
-        ImGui::TextDisabled("(function not found)");
+        CherryGUI::TextDisabled("(function not found)");
         return;
       }
 
@@ -216,16 +216,16 @@ namespace ModuleUI {
                     return;
 
                   TestCPP::Function &foo = *it;
-                  ImGui::PushID(("fn_in_" + std::to_string(index)).c_str());
+                  CherryGUI::PushID(("fn_in_" + std::to_string(index)).c_str());
 
                   // Row 1: name, type, delete
                   char nameBuf[128];
                   snprintf(nameBuf, sizeof(nameBuf), "%s", foo.inputs[index].name.c_str());
-                  ImGui::SetNextItemWidth(150.0f);
-                  if (ImGui::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
+                  CherryGUI::SetNextItemWidth(150.0f);
+                  if (CherryGUI::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
                     foo.inputs[index].name = nameBuf;
 
-                  ImGui::SameLine();
+                  CherryGUI::SameLine();
 
                   int selectedType = 0;
                   for (int t = 0; t < (int)available_types_.size(); ++t) {
@@ -236,34 +236,34 @@ namespace ModuleUI {
                   }
 
                   const char *preview = available_types_.empty() ? "" : available_types_[selectedType].c_str();
-                  ImGui::SetNextItemWidth(110.0f);
-                  if (ImGui::BeginCombo("##pin_type", preview)) {
+                  CherryGUI::SetNextItemWidth(110.0f);
+                  if (CherryGUI::BeginCombo("##pin_type", preview)) {
                     for (int t = 0; t < (int)available_types_.size(); ++t) {
                       bool selected = (selectedType == t);
-                      if (ImGui::Selectable(available_types_[t].c_str(), selected)) {
+                      if (CherryGUI::Selectable(available_types_[t].c_str(), selected)) {
                         foo.inputs[index].type = available_types_[t];
                         // switching type invalidates a stale default written for a different type
                         foo.inputs[index].default_value = TestCPP::DefaultLiteralValueForType(available_types_[t]);
                       }
                       if (selected)
-                        ImGui::SetItemDefaultFocus();
+                        CherryGUI::SetItemDefaultFocus();
                     }
-                    ImGui::EndCombo();
+                    CherryGUI::EndCombo();
                   }
 
-                  ImGui::SameLine();
-                  if (ImGui::SmallButton("X")) {
+                  CherryGUI::SameLine();
+                  if (CherryGUI::SmallButton("X")) {
                     foo.inputs.erase(foo.inputs.begin() + index);
-                    ImGui::PopID();
+                    CherryGUI::PopID();
                     return;
                   }
 
                   // Row 2: default value, type-aware editor
-                  ImGui::TextDisabled("Default");
-                  ImGui::SameLine();
+                  CherryGUI::TextDisabled("Default");
+                  CherryGUI::SameLine();
                   DrawDefaultValueEditor(foo.inputs[index].type, foo.inputs[index].default_value);
 
-                  ImGui::PopID();
+                  CherryGUI::PopID();
                 }));
       }
 
@@ -291,16 +291,16 @@ namespace ModuleUI {
                     return;
 
                   TestCPP::Function &foo = *it;
-                  ImGui::PushID(("fn_out_" + std::to_string(index)).c_str());
+                  CherryGUI::PushID(("fn_out_" + std::to_string(index)).c_str());
 
                   // Row 1: name, type, delete
                   char nameBuf[128];
                   snprintf(nameBuf, sizeof(nameBuf), "%s", foo.outputs[index].name.c_str());
-                  ImGui::SetNextItemWidth(150.0f);
-                  if (ImGui::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
+                  CherryGUI::SetNextItemWidth(150.0f);
+                  if (CherryGUI::InputText("##pin_name", nameBuf, sizeof(nameBuf)))
                     foo.outputs[index].name = nameBuf;
 
-                  ImGui::SameLine();
+                  CherryGUI::SameLine();
 
                   int selectedType = 0;
                   for (int t = 0; t < (int)available_types_.size(); ++t) {
@@ -311,33 +311,33 @@ namespace ModuleUI {
                   }
 
                   const char *preview = available_types_.empty() ? "" : available_types_[selectedType].c_str();
-                  ImGui::SetNextItemWidth(110.0f);
-                  if (ImGui::BeginCombo("##pin_type", preview)) {
+                  CherryGUI::SetNextItemWidth(110.0f);
+                  if (CherryGUI::BeginCombo("##pin_type", preview)) {
                     for (int t = 0; t < (int)available_types_.size(); ++t) {
                       bool selected = (selectedType == t);
-                      if (ImGui::Selectable(available_types_[t].c_str(), selected)) {
+                      if (CherryGUI::Selectable(available_types_[t].c_str(), selected)) {
                         foo.outputs[index].type = available_types_[t];
                         foo.outputs[index].default_value = TestCPP::DefaultLiteralValueForType(available_types_[t]);
                       }
                       if (selected)
-                        ImGui::SetItemDefaultFocus();
+                        CherryGUI::SetItemDefaultFocus();
                     }
-                    ImGui::EndCombo();
+                    CherryGUI::EndCombo();
                   }
 
-                  ImGui::SameLine();
-                  if (ImGui::SmallButton("X")) {
+                  CherryGUI::SameLine();
+                  if (CherryGUI::SmallButton("X")) {
                     foo.outputs.erase(foo.outputs.begin() + index);
-                    ImGui::PopID();
+                    CherryGUI::PopID();
                     return;
                   }
 
                   // Row 2: default value, type-aware editor
-                  ImGui::TextDisabled("Default");
-                  ImGui::SameLine();
+                  CherryGUI::TextDisabled("Default");
+                  CherryGUI::SameLine();
                   DrawDefaultValueEditor(foo.outputs[index].type, foo.outputs[index].default_value);
 
-                  ImGui::PopID();
+                  CherryGUI::PopID();
                 }));
       }
 
@@ -397,7 +397,7 @@ namespace ModuleUI {
       });
 
       if (it == drawer_session_->vars.end()) {
-        ImGui::TextDisabled("(variable not found)");
+        CherryGUI::TextDisabled("(variable not found)");
         return;
       }
 
@@ -429,7 +429,7 @@ namespace ModuleUI {
       var.name = name;
       var.default_value = def_val;
 
-      ImGui::Spacing();
+      CherryGUI::Spacing();
       if (CherryKit::ButtonText("Delete variable").GetDataAs<bool>("isClicked")) {
         std::string deleted_id = var.id;
         drawer_session_->vars.erase(
