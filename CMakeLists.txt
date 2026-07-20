@@ -90,9 +90,6 @@ add_custom_target(sync_assets_editor ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/main/assets
         $<TARGET_FILE_DIR:module>/
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE_DIR:module>/module.pdb
-        $<TARGET_FILE_DIR:module>/module.pdb
     COMMAND ${CMAKE_COMMAND} -E echo "Assets synchronized."
     DEPENDS ${ASSET_FILES} module
 )
