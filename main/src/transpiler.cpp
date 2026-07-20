@@ -17,18 +17,18 @@ namespace TestCPP {
 
   namespace {
 
-    ReturnValues CallIe(const char *action, const std::string &json) {
+    ReturnValues CallIe(const char* action, const std::string& json) {
       auto args = ArgumentValues(json);
       auto ret = ReturnValues();
       vxe::call_input_event("infinitehq.nodeedit", action, args, ret);
       return ret;
     }
 
-    bool StartsWithStr(const std::string &s, const std::string &prefix) {
+    bool StartsWithStr(const std::string& s, const std::string& prefix) {
       return s.rfind(prefix, 0) == 0;
     }
 
-    std::string Join(const std::vector<std::string> &parts, const std::string &sep) {
+    std::string Join(const std::vector<std::string>& parts, const std::string& sep) {
       std::string out;
       for (size_t i = 0; i < parts.size(); ++i) {
         if (i)
@@ -38,7 +38,7 @@ namespace TestCPP {
       return out;
     }
 
-    std::string SanitizeIdentifier(const std::string &raw) {
+    std::string SanitizeIdentifier(const std::string& raw) {
       std::string out;
       out.reserve(raw.size());
       for (char c : raw)
@@ -48,7 +48,7 @@ namespace TestCPP {
       return out;
     }
 
-    std::string CppParamName(const std::string &raw_name) {
+    std::string CppParamName(const std::string& raw_name) {
       return "p_" + SanitizeIdentifier(raw_name);
     }
 
@@ -58,7 +58,7 @@ namespace TestCPP {
     };
 
     nlohmann::json
-    CallGraphEvent(const GraphHandle &h, const char *live_action, const char *silent_action, nlohmann::json j) {
+    CallGraphEvent(const GraphHandle& h, const char* live_action, const char* silent_action, nlohmann::json j) {
       if (h.silent) {
         j["path"] = h.ref;
         return CallIe(silent_action, j.dump()).get_json();
@@ -83,40 +83,40 @@ namespace TestCPP {
 
       std::unordered_set<std::string> visiting;
       std::unordered_map<std::string, std::unordered_map<std::string, std::string>> call_result_vars;
-      const FunctionInfo *current_function = nullptr;
+      const FunctionInfo* current_function = nullptr;
       std::string current_function_start_schema;
       std::string current_function_end_schema;
 
       bool had_error = false;
     };
 
-    std::string GetNodeTypeId(TranspileCtx &ctx, const std::string &node_id) {
+    std::string GetNodeTypeId(TranspileCtx& ctx, const std::string& node_id) {
       auto rj = CallGraphEvent(ctx.graph, "get_node_type_id", "get_node_type_id_silently", { { "node_id", node_id } });
       return rj.value("type_id", "");
     }
 
-    nlohmann::json GetNodeData(TranspileCtx &ctx, const std::string &node_id) {
+    nlohmann::json GetNodeData(TranspileCtx& ctx, const std::string& node_id) {
       auto rj = CallGraphEvent(ctx.graph, "get_node_data", "get_node_data_silently", { { "node_id", node_id } });
       return rj.contains("datas") ? rj["datas"] : nlohmann::json::object();
     }
 
-    std::string FindNodeBySchemaId(TranspileCtx &ctx, const std::string &schema_id) {
+    std::string FindNodeBySchemaId(TranspileCtx& ctx, const std::string& schema_id) {
       auto rj = CallGraphEvent(
           ctx.graph, "find_node_by_schema_id", "find_node_by_schema_id_silently", { { "schema_id", schema_id } });
       return rj.value("node_id", "");
     }
 
-    std::vector<std::string> GetNextNodes(TranspileCtx &ctx, const std::string &node_id, const std::string &output_id) {
+    std::vector<std::string> GetNextNodes(TranspileCtx& ctx, const std::string& node_id, const std::string& output_id) {
       auto rj = CallGraphEvent(
           ctx.graph, "get_next_nodes", "get_next_nodes_silently", { { "node_id", node_id }, { "output_id", output_id } });
       std::vector<std::string> out;
       if (rj.contains("node_ids") && rj["node_ids"].is_array())
-        for (const auto &v : rj["node_ids"])
+        for (const auto& v : rj["node_ids"])
           out.push_back(v.get<std::string>());
       return out;
     }
 
-    std::vector<std::string> GetPreviousNodes(TranspileCtx &ctx, const std::string &node_id, const std::string &input_id) {
+    std::vector<std::string> GetPreviousNodes(TranspileCtx& ctx, const std::string& node_id, const std::string& input_id) {
       auto rj = CallGraphEvent(
           ctx.graph,
           "get_previous_nodes",
@@ -124,12 +124,12 @@ namespace TestCPP {
           { { "node_id", node_id }, { "input_id", input_id } });
       std::vector<std::string> out;
       if (rj.contains("node_ids") && rj["node_ids"].is_array())
-        for (const auto &v : rj["node_ids"])
+        for (const auto& v : rj["node_ids"])
           out.push_back(v.get<std::string>());
       return out;
     }
 
-    std::string GetSourcePin(TranspileCtx &ctx, const std::string &node_id, const std::string &input_id) {
+    std::string GetSourcePin(TranspileCtx& ctx, const std::string& node_id, const std::string& input_id) {
       auto rj = CallGraphEvent(
           ctx.graph,
           "get_connection_source_pin",
@@ -138,7 +138,7 @@ namespace TestCPP {
       return rj.value("pin_id", "");
     }
 
-    std::string CppTypeForPinType(const std::string &pin_type) {
+    std::string CppTypeForPinType(const std::string& pin_type) {
       if (pin_type == "bool")
         return "bool";
       if (pin_type == "int")
@@ -151,7 +151,7 @@ namespace TestCPP {
       return "auto";
     }
 
-    std::string EscapeCppString(const std::string &s) {
+    std::string EscapeCppString(const std::string& s) {
       std::string out;
       out.reserve(s.size());
       for (char c : s) {
@@ -167,10 +167,10 @@ namespace TestCPP {
     }
 
     std::string LiteralFromData(
-        const nlohmann::json &datas,
-        const std::string &pin_id,
-        const std::string &pin_type,
-        const std::string &fallback_default = "") {
+        const nlohmann::json& datas,
+        const std::string& pin_id,
+        const std::string& pin_type,
+        const std::string& fallback_default = "") {
       bool has_value = datas.contains(pin_id) && !datas[pin_id].is_null();
 
       if (pin_type == "bool") {
@@ -214,7 +214,7 @@ namespace TestCPP {
       return "{}";
     }
 
-    std::string CppVarName(TranspileCtx &ctx, const std::string &var_id) {
+    std::string CppVarName(TranspileCtx& ctx, const std::string& var_id) {
       auto it = ctx.var_cpp_name.find(var_id);
       if (it != ctx.var_cpp_name.end())
         return it->second;
@@ -228,18 +228,18 @@ namespace TestCPP {
     }
 
     std::string TranspileExpression(
-        TranspileCtx &ctx,
-        const std::string &node_id,
-        const std::string &source_pin,
-        const std::string &expected_type);
+        TranspileCtx& ctx,
+        const std::string& node_id,
+        const std::string& source_pin,
+        const std::string& expected_type);
 
     std::string ResolveInput(
-        TranspileCtx &ctx,
-        const std::string &node_id,
-        const std::string &pin_id,
-        const std::string &pin_type,
-        const nlohmann::json &node_datas,
-        const std::string &fallback_default = "") {
+        TranspileCtx& ctx,
+        const std::string& node_id,
+        const std::string& pin_id,
+        const std::string& pin_type,
+        const nlohmann::json& node_datas,
+        const std::string& fallback_default = "") {
       auto producers = GetPreviousNodes(ctx, node_id, pin_id);
       if (producers.size() > 1)
         ctx.had_error = true;
@@ -250,10 +250,10 @@ namespace TestCPP {
       return LiteralFromData(node_datas, pin_id, pin_type, fallback_default);
     }
     std::string TranspileExpression(
-        TranspileCtx &ctx,
-        const std::string &node_id,
-        const std::string &source_pin,
-        const std::string &expected_type) {
+        TranspileCtx& ctx,
+        const std::string& node_id,
+        const std::string& source_pin,
+        const std::string& expected_type) {
       std::string type_id = GetNodeTypeId(ctx, node_id);
       if (type_id.empty()) {
         ctx.had_error = true;
@@ -410,7 +410,7 @@ namespace TestCPP {
              LiteralFromData(nlohmann::json::object(), "", expected_type);
     }
 
-    void TranspileFlow(TranspileCtx &ctx, const std::string &node_id, int depth, std::string &out) {
+    void TranspileFlow(TranspileCtx& ctx, const std::string& node_id, int depth, std::string& out) {
       if (node_id.empty())
         return;
 
@@ -425,29 +425,29 @@ namespace TestCPP {
         auto datas = GetNodeData(ctx, node_id);
         std::string msg = ResolveInput(ctx, node_id, "string", "string", datas);
         out += Indent(depth) + "std::cout << " + msg + " << std::endl;\n";
-        for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
+        for (const auto& next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
 
       } else if (type_id == "sleep") {
         auto datas = GetNodeData(ctx, node_id);
         std::string seconds = ResolveInput(ctx, node_id, "int", "int", datas);
         out += Indent(depth) + "std::this_thread::sleep_for(std::chrono::seconds(" + seconds + "));\n";
-        for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
+        for (const auto& next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
 
       } else if (type_id == "close") {
         out += Indent(depth) + "TriggerClose();\n";
-        for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
+        for (const auto& next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
 
       } else if (type_id == "branch") {
         auto datas = GetNodeData(ctx, node_id);
         std::string cond = ResolveInput(ctx, node_id, "bool", "bool", datas);
         out += Indent(depth) + "if (" + cond + ") {\n";
-        for (const auto &next : GetNextNodes(ctx, node_id, "output_true"))
+        for (const auto& next : GetNextNodes(ctx, node_id, "output_true"))
           TranspileFlow(ctx, next, depth + 1, out);
         out += Indent(depth) + "} else {\n";
-        for (const auto &next : GetNextNodes(ctx, node_id, "output_false"))
+        for (const auto& next : GetNextNodes(ctx, node_id, "output_false"))
           TranspileFlow(ctx, next, depth + 1, out);
         out += Indent(depth) + "}\n";
 
@@ -462,36 +462,36 @@ namespace TestCPP {
           std::string value_expr = ResolveInput(ctx, node_id, "value", it->second.type, datas);
           out += Indent(depth) + CppVarName(ctx, var_id) + " = " + value_expr + ";\n";
         }
-        for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
+        for (const auto& next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
 
       } else if (type_id == "on_setup" || type_id == "on_loop") {
-        for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
+        for (const auto& next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
 
       } else if (ctx.current_function && type_id == ctx.current_function_end_schema) {
-        const FunctionInfo &fn = *ctx.current_function;
+        const FunctionInfo& fn = *ctx.current_function;
         auto datas = GetNodeData(ctx, node_id);
 
         if (fn.decl.outputs.empty()) {
           out += Indent(depth) + "return;\n";
         } else if (fn.decl.outputs.size() == 1) {
-          const auto &pin = fn.decl.outputs[0];
+          const auto& pin = fn.decl.outputs[0];
           std::string expr = ResolveInput(ctx, node_id, pin.name, pin.type, datas, pin.default_value);
           out += Indent(depth) + "return " + expr + ";\n";
         } else {
           std::vector<std::string> field_inits;
-          for (const auto &pin : fn.decl.outputs)
+          for (const auto& pin : fn.decl.outputs)
             field_inits.push_back(ResolveInput(ctx, node_id, pin.name, pin.type, datas, pin.default_value));
           out += Indent(depth) + "return " + fn.cpp_name + "_Result{ " + Join(field_inits, ", ") + " };\n";
         }
 
       } else if (ctx.functions_by_id.count(type_id)) {
-        const FunctionInfo &fn = ctx.functions_by_id.at(type_id);
+        const FunctionInfo& fn = ctx.functions_by_id.at(type_id);
         auto datas = GetNodeData(ctx, node_id);
 
         std::vector<std::string> arg_exprs;
-        for (const auto &pin : fn.decl.inputs)
+        for (const auto& pin : fn.decl.inputs)
           arg_exprs.push_back(ResolveInput(ctx, node_id, pin.name, pin.type, datas, pin.default_value));
 
         std::string call_expr = fn.cpp_name + "(" + Join(arg_exprs, ", ") + ")";
@@ -499,18 +499,18 @@ namespace TestCPP {
         if (fn.decl.outputs.empty()) {
           out += Indent(depth) + call_expr + ";\n";
         } else if (fn.decl.outputs.size() == 1) {
-          const auto &pin = fn.decl.outputs[0];
+          const auto& pin = fn.decl.outputs[0];
           std::string tmp = "call_" + SanitizeIdentifier(node_id);
           out += Indent(depth) + CppTypeForPinType(pin.type) + " " + tmp + " = " + call_expr + ";\n";
           ctx.call_result_vars[node_id][pin.name] = tmp;
         } else {
           std::string tmp = "call_" + SanitizeIdentifier(node_id);
           out += Indent(depth) + fn.cpp_name + "_Result " + tmp + " = " + call_expr + ";\n";
-          for (const auto &pin : fn.decl.outputs)
+          for (const auto& pin : fn.decl.outputs)
             ctx.call_result_vars[node_id][pin.name] = tmp + "." + SanitizeIdentifier(pin.name);
         }
 
-        for (const auto &next : GetNextNodes(ctx, node_id, "output_flow"))
+        for (const auto& next : GetNextNodes(ctx, node_id, "output_flow"))
           TranspileFlow(ctx, next, depth, out);
       } else {
         ctx.had_error = true;
@@ -520,11 +520,11 @@ namespace TestCPP {
       ctx.visiting.erase(node_id);
     }
 
-    void TranspileFunctionBody(TranspileCtx &ctx, FunctionInfo &fn, std::string &out_decls, std::string &out_structs) {
+    void TranspileFunctionBody(TranspileCtx& ctx, FunctionInfo& fn, std::string& out_decls, std::string& out_structs) {
       GraphHandle prev_graph = ctx.graph;
       auto prev_visiting = std::move(ctx.visiting);
       auto prev_call_vars = std::move(ctx.call_result_vars);
-      const FunctionInfo *prev_current_fn = ctx.current_function;
+      const FunctionInfo* prev_current_fn = ctx.current_function;
       std::string prev_start = ctx.current_function_start_schema;
       std::string prev_end = ctx.current_function_end_schema;
 
@@ -543,7 +543,7 @@ namespace TestCPP {
         body += Indent(1) + "// TODO: could not find the Start node for function '" + fn.decl.name + "' (" + fn.folder_path +
                 ")\n";
       } else {
-        for (const auto &next : GetNextNodes(ctx, start_node, "output"))
+        for (const auto& next : GetNextNodes(ctx, start_node, "output"))
           TranspileFlow(ctx, next, 1, body);
       }
 
@@ -555,13 +555,13 @@ namespace TestCPP {
 
       if (fn.decl.outputs.size() > 1) {
         out_structs += "struct " + fn.cpp_name + "_Result {\n";
-        for (const auto &pin : fn.decl.outputs)
+        for (const auto& pin : fn.decl.outputs)
           out_structs += "  " + CppTypeForPinType(pin.type) + " " + SanitizeIdentifier(pin.name) + ";\n";
         out_structs += "};\n\n";
       }
 
       std::vector<std::string> params;
-      for (const auto &pin : fn.decl.inputs)
+      for (const auto& pin : fn.decl.inputs)
         params.push_back(CppTypeForPinType(pin.type) + " " + CppParamName(pin.name));
 
       out_decls += "// Function: " + fn.decl.name + " (" + fn.decl.id + ")\n";
@@ -581,7 +581,7 @@ namespace TestCPP {
 
   }  // namespace
 
-  bool transpile_graph(const std::string &session_id, const std::string &storage_path, std::string &out_cpp_path) {
+  bool transpile_graph(const std::string& session_id, const std::string& storage_path, std::string& out_cpp_path) {
     if (session_id.empty()) {
       get_current_context()->m_interface->log_error("[TestCPP] Cannot transpile: no active graph session.");
       return false;
@@ -590,13 +590,13 @@ namespace TestCPP {
     TranspileCtx ctx;
     ctx.graph = GraphHandle{ false, session_id };
 
-    for (auto &v : TestCPP::load_variables_from_file(storage_path))
+    for (auto& v : TestCPP::load_variables_from_file(storage_path))
       ctx.vars_by_id[v.id] = v;
 
     std::filesystem::path storage_p(storage_path);
     std::filesystem::path base_dir = storage_p.has_parent_path() ? storage_p.parent_path() : std::filesystem::path(".");
 
-    for (auto &f : TestCPP::load_functions_from_file(storage_path)) {
+    for (auto& f : TestCPP::load_functions_from_file(storage_path)) {
       FunctionInfo info;
       info.decl = f;
       info.folder_path = (base_dir / f.id).string();
@@ -617,7 +617,7 @@ namespace TestCPP {
     }
 
     std::string var_decls;
-    for (auto &[var_id, var] : ctx.vars_by_id) {
+    for (auto& [var_id, var] : ctx.vars_by_id) {
       std::string cpp_type = CppTypeForPinType(var.type);
       std::string default_literal;
 
@@ -636,15 +636,15 @@ namespace TestCPP {
 
     std::string functions_struct_decls;
     std::string functions_decls;
-    for (auto &[id, info] : ctx.functions_by_id)
+    for (auto& [id, info] : ctx.functions_by_id)
       TranspileFunctionBody(ctx, info, functions_decls, functions_struct_decls);
 
     std::string setup_body;
-    for (const auto &next : GetNextNodes(ctx, on_setup_id, "output_flow"))
+    for (const auto& next : GetNextNodes(ctx, on_setup_id, "output_flow"))
       TranspileFlow(ctx, next, 1, setup_body);
 
     std::string loop_body;
-    for (const auto &next : GetNextNodes(ctx, on_loop_id, "output_flow"))
+    for (const auto& next : GetNextNodes(ctx, on_loop_id, "output_flow"))
       TranspileFlow(ctx, next, 1, loop_body);
 
     std::ostringstream file;
@@ -700,7 +700,7 @@ namespace TestCPP {
         return false;
       }
       ofs << file.str();
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       get_current_context()->m_interface->log_error(std::string("[TestCPP] Failed to write generated file: ") + e.what());
       return false;
     }
@@ -708,27 +708,87 @@ namespace TestCPP {
     out_cpp_path = out_p.string();
 
     if (ctx.had_error) {
-      get_current_context()->m_interface->log_error(
-          "[TestCPP] Transpile completed with warnings — check the TODO comments in " + out_cpp_path);
+      get_current_context()->m_interface->log_error("[TestCPP] Transpile completed with warnings");
     }
 
     return true;
   }
 
-  bool compile_and_run(const std::string &cpp_path) {
+  bool compile_and_run(const std::string& cpp_path) {
     std::filesystem::path p(cpp_path);
     std::filesystem::path exe_path = p.parent_path() / p.stem();
 
 #if defined(_WIN32)
     exe_path += ".exe";
-    std::string compile_cmd = "g++ -std=c++17 \"" + p.string() + "\" -o \"" + exe_path.string() + "\"";
+
+    char program_files_x86[MAX_PATH] = { 0 };
+    DWORD len = GetEnvironmentVariableA("ProgramFiles(x86)", program_files_x86, MAX_PATH);
+    if (len == 0 || len >= MAX_PATH) {
+      get_current_context()->m_interface->log_error("[TestCPP] Cannot resolve Program Files folder.");
+      return false;
+    }
+
+    std::filesystem::path vswhere_path =
+        std::filesystem::path(program_files_x86) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe";
+
+    if (!std::filesystem::exists(vswhere_path)) {
+      get_current_context()->m_interface->log_error("[TestCPP] Unable to find vswhere.exe on : " + vswhere_path.string());
+      return false;
+    }
+
+    std::string vswhere_cmd = "\"" + vswhere_path.string() +
+                              "\" "
+                              "-latest -products * "
+                              "-requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 "
+                              "-property installationPath";
+
+    std::string vs_install_path;
+    {
+      FILE* pipe = _popen(vswhere_cmd.c_str(), "r");
+      if (!pipe) {
+        get_current_context()->m_interface->log_error("[TestCPP] Cannot start vswhere.");
+        return false;
+      }
+      char buffer[512];
+      while (fgets(buffer, sizeof(buffer), pipe)) {
+        vs_install_path += buffer;
+      }
+      _pclose(pipe);
+      while (!vs_install_path.empty() && (vs_install_path.back() == '\n' || vs_install_path.back() == '\r')) {
+        vs_install_path.pop_back();
+      }
+    }
+
+    if (vs_install_path.empty()) {
+      get_current_context()->m_interface->log_error("[TestCPP] No Visual Studio found.");
+      return false;
+    }
+
+    std::filesystem::path vcvarsall =
+        std::filesystem::path(vs_install_path) / "VC" / "Auxiliary" / "Build" / "vcvarsall.bat";
+    if (!std::filesystem::exists(vcvarsall)) {
+      get_current_context()->m_interface->log_error("[TestCPP] vcvarsall.bat introuvable a: " + vcvarsall.string());
+      return false;
+    }
+
+    std::string inner_cmd = "\"" + vcvarsall.string() +
+                            "\" x64 && "
+                            "cl /std:c++17 /EHsc /nologo "
+                            "\"" +
+                            p.string() +
+                            "\" "
+                            "/Fe:\"" +
+                            exe_path.string() + "\"";
+
+    std::string compile_cmd = "\"" + inner_cmd + "\"";
+
 #else
     std::string compile_cmd = "c++ -std=c++17 \"" + p.string() + "\" -o \"" + exe_path.string() + "\"";
 #endif
 
     int compile_result = std::system(compile_cmd.c_str());
     if (compile_result != 0) {
-      get_current_context()->m_interface->log_error("[TestCPP] Compilation failed (see console output above).");
+      get_current_context()->m_interface->log_error("[TestCPP] Compilation failed.");
       return false;
     }
 
@@ -741,5 +801,4 @@ namespace TestCPP {
     std::system(run_cmd.c_str());
     return true;
   }
-
 }  // namespace TestCPP
